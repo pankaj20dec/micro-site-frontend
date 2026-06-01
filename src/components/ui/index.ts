@@ -1,4 +1,6 @@
 export { AccentRule } from "./AccentRule";
+export { Accordion } from "./Accordion";
+export type { AccordionItem } from "./Accordion";
 export { BandTitleBlock } from "./BandTitleBlock";
 export { ButtonLink } from "./ButtonLink";
 export { Container } from "./Container";

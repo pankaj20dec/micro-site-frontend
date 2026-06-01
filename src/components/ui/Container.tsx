@@ -6,6 +6,7 @@ const maxWidths = {
   md: "max-w-md",
   "3xl": "max-w-3xl",
   /** Main site container — 1400px */
+  "5xl": "max-w-[1200px]",
   "6xl": "max-w-[1400px]",
   "7xl": "max-w-7xl",
   full: "max-w-full",

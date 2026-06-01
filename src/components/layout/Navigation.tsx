@@ -2,40 +2,36 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 import { mainNavLinks } from "./nav-links";
 
 export { mainNavLinks };
 
-function useHash() {
-  const [hash, setHash] = useState("");
-  useEffect(() => {
-    const sync = () => setHash(window.location.hash);
-    sync();
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
-  }, []);
-  return hash;
-}
-
 function isNavActive(
   link: (typeof mainNavLinks)[number],
-  pathname: string | null,
-  hash: string
+  pathname: string | null
 ): boolean {
   if (!pathname) return false;
   if (link.id === "news") {
-    return pathname === "/pages" || pathname.startsWith("/pages/");
+    return pathname === "/news" || pathname.startsWith("/news/");
   }
-  if (pathname !== "/") return false;
-  const fragment = link.href.includes("#") ? `#${link.href.split("#")[1]}` : "";
-  if (!fragment) return false;
+  if (link.id === "about") {
+    return pathname === "/about" || pathname.startsWith("/about/");
+  }
+  if (link.id === "faq") {
+    return pathname === "/faq" || pathname.startsWith("/faq/");
+  }
+  if (link.id === "contact") {
+    return pathname === "/contact" || pathname.startsWith("/contact/");
+  }
+  if (link.id === "explanations") {
+    return pathname === "/explanations" || pathname.startsWith("/explanations/");
+  }
   if (link.id === "claim") {
-    return hash === "" || hash === "#" || hash === "#claim";
+    return pathname === "/claim" || pathname.startsWith("/claim/");
   }
-  return hash === fragment;
+  return false;
 }
 
 type NavigationProps = {
@@ -45,7 +41,6 @@ type NavigationProps = {
 
 export function Navigation({ className, compact }: NavigationProps) {
   const pathname = usePathname();
-  const hash = useHash();
 
   return (
     <ul
@@ -56,7 +51,7 @@ export function Navigation({ className, compact }: NavigationProps) {
       )}
     >
       {mainNavLinks.map((link) => {
-        const active = isNavActive(link, pathname, hash);
+        const active = isNavActive(link, pathname);
         return (
           <li key={link.href} className="shrink-0">
             <Link

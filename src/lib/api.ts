@@ -14,6 +14,10 @@ export type PageSummary = {
   slug: string;
   title: string;
   updatedAt?: string;
+  publishedAt?: string;
+  excerpt?: string;
+  featuredImage?: string;
+  category?: string;
 };
 
 export type PageDoc = PageSummary & {
