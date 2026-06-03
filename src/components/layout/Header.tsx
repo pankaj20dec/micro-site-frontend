@@ -1,18 +1,18 @@
 import { ButtonLink, Container } from "@/components/ui";
 import { HeaderBrand } from "./HeaderBrand";
-import { Navigation, NavigationCompact } from "./Navigation";
+import { Navigation } from "./Navigation";
+import { MobileMenu } from "./MobileMenu";
 
 export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-neutral-200/80 bg-white shadow-sm">
-      <Container className="flex flex-wrap items-center justify-between gap-y-4 py-4 sm:py-5">
+      <Container className="flex items-center justify-between py-3.5 sm:py-4">
         <HeaderBrand />
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-6 sm:gap-8 lg:flex-initial">
-          <nav className="hidden min-w-0 lg:block" aria-label="Main">
+
+        {/* Desktop nav — lg and above */}
+        <div className="hidden items-center gap-8 lg:flex">
+          <nav aria-label="Main">
             <Navigation />
-          </nav>
-          <nav className="max-w-[100vw] flex-1 overflow-x-auto lg:hidden" aria-label="Main">
-            <NavigationCompact />
           </nav>
           <ButtonLink
             href="/#join"
@@ -23,6 +23,9 @@ export function Header() {
             Join the claim
           </ButtonLink>
         </div>
+
+        {/* Mobile hamburger — below lg */}
+        <MobileMenu />
       </Container>
     </header>
   );

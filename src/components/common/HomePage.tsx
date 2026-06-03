@@ -18,7 +18,6 @@ export function HomePage() {
       <ClaimSection />
       <StepsSection />
       <FeesSection />
-      <Footer />
     </div>
   );
 }

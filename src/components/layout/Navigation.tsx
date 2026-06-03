@@ -29,7 +29,7 @@ function isNavActive(
     return pathname === "/explanations" || pathname.startsWith("/explanations/");
   }
   if (link.id === "claim") {
-    return pathname === "/claim" || pathname.startsWith("/claim/");
+    return pathname === "/";
   }
   return false;
 }

@@ -94,7 +94,7 @@ function SocialIcon({
 
 function FooterBrandCard() {
   return (
-    <div className="relative z-10 -mt-14 w-full max-w-[19rem] rounded-xl bg-white px-6 py-6 shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:-mt-24 sm:max-w-[20rem] sm:px-7 sm:py-7">
+    <div className="relative z-10 -mt-14 w-full max-w-[14rem] rounded-xl bg-white px-6 py-6 shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:-mt-24 sm:max-w-[20rem] sm:px-7 sm:py-7">
       <div className="flex items-start gap-3 border-b border-neutral-200 pb-4">
         <span className="mt-0.5 shrink-0 text-[#E91E8C]">
           <IconEnvelope className="h-5 w-5" />
@@ -123,7 +123,7 @@ export function Footer() {
       className="relative scroll-mt-20 overflow-visible font-sans text-white mt-10"
       style={{ backgroundColor: brand.purple }}
     >
-      <Container className="pb-10">
+      <Container className="pb-10" max="5xl">
         <div className="grid items-start gap-10 lg:grid-cols-[20rem_1fr_1.15fr] lg:gap-x-12 xl:gap-x-16">
           <div>
             <FooterBrandCard />
