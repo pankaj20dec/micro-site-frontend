@@ -30,17 +30,17 @@ const parallelRestrictions = [
 const legalCards = [
   {
     title: "Competition Law",
-    text: "Challenging agreements and concerted practices that restrict competition — including arrangements that keep consultant fees artificially low.",
+    text: "Network effects (Chapter I of the Competition Act 1998). The Chapter I claim does not depend on Bupa and AXA PPP having coordinated with each other at all. The argument",
     Illustration: IllustrationCompetitionLaw,
   },
   {
     title: "Restraint Of Trade",
-    text: "Testing whether insurer rules and network terms unreasonably restrain how you practise, contract, and earn.",
+    text: "This is an older common law principle, independent of statute. It prevents economically powerful actors from distorting a market in ways that cause unjustified harm to others",
     Illustration: IllustrationRestraintOfTrade,
   },
   {
     title: "Economic Torts",
-    text: "Pursuing claims where unlawful interference with your practice has caused measurable financial harm.",
+    text: "This is the most direct expression of the harm to individual practitioners. The insurers have not merely set low fees passively — we contend they have actively interfered",
     Illustration: IllustrationEconomicTorts,
   },
 ] as const;
@@ -69,14 +69,9 @@ export function ClaimSection() {
 
         <div className="mx-auto mt-8 max-w-4xl space-y-5 text-sm leading-relaxed sm:text-base">
           <p>
-            For many years, the UK private medical insurance market has been dominated by a small number of powerful
-            institutions. Bupa Insurance Limited and AXA PPP Healthcare Limited, together with other private medical
-            insurers (PMIs), exercise enormous influence over how consultants practise and what they are paid.
+          Private medical insurance companies, including Bupa and AXA PPP, are the dominant purchasers of private medical services in the UK. Between them they control a very large proportion of the market through which patients pay for private treatment. That market dominance gives them enormous leverage over what they pay doctors and other practitioners.
           </p>
-          <p>
-            In exercising that influence, they have not competed fairly. Instead, they have imposed a series of parallel
-            restrictions on independent practitioners — restrictions that work together to suppress fees and control
-            clinical freedom. These &apos;parallel&apos; restrictions include:
+          <p><strong>The evidence:</strong> supposedly independent insurance companies have developed virtually identical contract and fee practices. These ‘parallel’ restrictions include:
           </p>
         </div>
 
@@ -88,8 +83,7 @@ export function ClaimSection() {
 
         <div className="mx-auto mt-8 max-w-4xl space-y-5 text-sm leading-relaxed sm:mt-10 sm:text-base">
           <p>
-            Taken together, these practices have damaged practitioners financially and narrowed patient choice —
-            directing people away from the consultant best placed to help them.
+          The effect on practitioners has been concrete and measurable: fees that should have risen with inflation and increased clinical complexity have instead stagnated or fallen in real terms, representing a substantial and ongoing transfer of wealth from practitioners to insurers.
           </p>
           <p>We believe these PMIs have exploited that market power unlawfully, in three ways:</p>
         </div>
@@ -112,10 +106,7 @@ export function ClaimSection() {
         <h3 className="mt-12 text-lg font-bold sm:mt-16 sm:text-xl">In plain terms — tying it all together:</h3>
 
         <p className="mx-auto mt-6 max-w-4xl text-sm leading-relaxed sm:text-base">
-          This action is not about enriching doctors for its own sake. It is about restoring fair competition,
-          transparent relationships with insurers, and the freedom for patients to choose specialists based on skill
-          and trust — not insurer steering. By joining together, practitioners can pursue compensation and lasting reform
-          through established competition and tort principles.
+        Bupa and AXA PPP have, we will allege, used their market power over the private medical market to keep practitioners' fees artificially low. They did not need to sit in a room and agree a plan. The sheer scale and structure of their individual dealings with practitioners across the market has had the same effect as if they had. The result is the same: practitioners have been paid less than a competitive market would have delivered, year after year. These three legal arguments — competition law, restraint of trade, and economic torts — attack that conduct from different angles and together give practitioners a strong and multi-layered basis for compensation.
         </p>
 
         <div className="mt-10 flex justify-center sm:mt-12">

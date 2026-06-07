@@ -6,9 +6,9 @@ import { faqContact } from "@/lib/faq-content";
 export function FaqContactCta() {
   return (
     <Section className="bg-white pb-14 sm:pb-20" id="faq-contact">
-      <Container max="3xl">
+      <Container max="5xl">
         <p
-          className="text-sm font-semibold text-[#22313F] sm:text-base"
+          className="text-[30px] font-bold text-[#22313F]"
         >
           {faqContact.eyebrow}
         </p>

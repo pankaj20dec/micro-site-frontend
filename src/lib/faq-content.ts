@@ -118,7 +118,7 @@ export const faqItems: ReadonlyArray<FaqItem> = [
   },
   {
     id: "retired",
-    question: "I Am Retired From Private Practice. Can I Still Join?",
+    question: "I Retired From Private Practice. Can I Still Join?",
     answer:
       "Yes. The claim relates to historic treatments, so retired consultants who treated insured patients during the relevant period are eligible to join.",
   },

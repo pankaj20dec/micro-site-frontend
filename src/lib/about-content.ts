@@ -4,8 +4,8 @@ export const aboutTabPanels = [
   {
     heading: "Who We Are",
     paragraphs: [
-      "The Federation Of Independent Practitioner Organisations (FIPO) Is A Not-For-Profit Independent Professional Body Dedicated To Doctors, With Charitable/Professional (Non-Profit) Objectives Including The Advancement Of The Practice Of Independent Medical Practitioners, The Maintenance Of Professional And Clinical Standards, And The Protection Of The Public Interest In Relation To Private Healthcare Services.",
-      "Since 2000, We Have Campaigned Tirelessly For A Private Medical Market That Is Fair, Competitive, And Properly Regulated.",
+      "The Federation of Independent Practitioner Organisations (FIPO) is a not-for-profit independent professional body dedicated to doctors, with charitable/professional (non-profit) objectives including the advancement of the practice of independent medical practitioners, the maintenance of professional and clinical standards, and the protection of the public interest in relation to private healthcare services.",
+      "Since 2000, we have campaigned tirelessly for a private medical market that is fair, competitive, and properly regulated.",
     ],
   },
   {

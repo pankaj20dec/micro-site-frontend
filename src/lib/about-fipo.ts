@@ -14,9 +14,9 @@ export const fipoFirm = {
   ],
   boardHeading: "Executive Board of Directors",
   directors: [
-    { name: "Mr. Richard Packard", role: "Chairman" },
-    { name: "Mr. Ian McDermott", role: "Vice Chairman" },
-    { name: "Mr. Charlie Chan", role: "Vice Chairman" },
-    { name: "Ms. Rosemary Hittinger", role: "Board Member" },
+    { name: "Mr Richard Packard", role: "Chairman" },
+    { name: "Mr Ian McDermott", role: "Vice Chairman" },
+    { name: "Mr Charlie Chan", role: "Vice Chairman" },
+    { name: "Ms Rosemary Hittinger", role: "Board Member" },
   ] satisfies readonly FipoDirector[],
 } as const;

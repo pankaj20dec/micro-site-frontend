@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { HeaderBrand } from "@/components/layout/HeaderBrand";
 import { mainNavLinks } from "@/components/layout/nav-links";
 import { brand } from "@/lib/brand";
 import { Container } from "@/components/ui";
@@ -94,23 +94,40 @@ function SocialIcon({
 
 function FooterBrandCard() {
   return (
-    <div className="relative z-10 -mt-14 w-full max-w-[14rem] rounded-xl bg-white px-6 py-6 shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:-mt-24 sm:max-w-[20rem] sm:px-7 sm:py-7">
-      <div className="flex items-start gap-3 border-b border-neutral-200 pb-4">
-        <span className="mt-0.5 shrink-0 text-[#E91E8C]">
-          <IconEnvelope className="h-5 w-5" />
+    <div className="relative z-10 -mt-14 w-full max-w-[14rem] rounded-xl bg-white px-6 py-6 shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:-mt-24 sm:max-w-[20rem] sm:px-6 sm:py-6">
+      <div className="flex items-start gap-3 border-b-[2px] border-neutral-200 pb-4">
+        <span className="mt-0.5 shrink-0">
+          <Image
+            src="/mail-icon.svg"
+            alt=""
+            width={24}
+            height={24}
+            className="h-5 w-5"
+            aria-hidden
+          />
         </span>
         <div className="min-w-0">
-          <p className="text-[11px] font-medium text-neutral-500 sm:text-xs">Contact Us</p>
+          <p className="text-[13px] font-medium text-[#8F8F8F]">Contact Us</p>
           <a
             href="mailto:office@fipo.uk"
-            className="mt-0.5 block text-[15px] font-bold leading-tight text-neutral-900 hover:underline sm:text-base"
+            className="mt-0.5 block text-[18px] font-medium leading-tight text-[#223645] hover:underline"
           >
             office@fipo.uk
           </a>
         </div>
       </div>
-      <div className="mt-5">
-        <HeaderBrand variant="footer" />
+      <div className="flex max-w-full flex-col mb-4">
+          <p className="text-[120px] font-bold uppercase tracking-wide text-[#660066] leading-none">FIPO</p>
+        <p className="text-[#8F8F8F] font-bold text-center mb-5">Federation of Independent Practitioner Organisations</p>
+        <Link href="https://harcusparker.co.uk" target="_blank" rel="noopener noreferrer">
+          <Image
+            src="/images/footer-logo.png"
+            alt="Harcus Parker"
+            width={270}
+            height={40}
+            className="h-auto w-[270px] object-contain"
+          />
+        </Link>
       </div>
     </div>
   );
@@ -172,7 +189,7 @@ export function Footer() {
             </ul>
             <div className="mt-5 flex items-center gap-5">
               <SocialIcon href="https://www.facebook.com/" label="Facebook">
-                <IconFacebook className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <IconFacebook className="h-4.5 w-4.5 sm:h-8 sm:w-5" />
               </SocialIcon>
               <SocialIcon href="https://twitter.com/" label="X (Twitter)">
                 <IconTwitter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -186,11 +203,11 @@ export function Footer() {
 
         <div className="mt-11 border-t border-white/20 pt-6 text-center text-[11px] font-normal leading-relaxed text-white sm:mt-14 sm:text-xs">
           <p>
-            The Federation of Independent Practitioner Organizations is a company limited by guarantee, registered in
+            The Federation of Independent Practitioner Organisations is a company limited by guarantee, registered in
             England number 4148752.
           </p>
           <p className="mt-1.5">
-            Registered office: The Harley Building, 77-79 New Cavendish Street, London, W1W 6XB.
+          Registered office: 2 St Marys Road, Tonbridge, Kent TN9 2LB
           </p>
         </div>
       </Container>
