@@ -10,7 +10,7 @@ import { StepsSection } from "./StepsSection";
 
 export function HomePage() {
   return (
-    <div className="bg-white text-neutral-800">
+    <div className="bg-white text-[#627489]">
       <HeroSection />
       <FightingSection />
       <ActionJoinSection />

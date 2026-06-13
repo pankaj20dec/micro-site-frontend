@@ -31,7 +31,7 @@ export function AboutSection({
     <Section
       id={sectionId}
       anchorOffset={Boolean(sectionId)}
-      className="border-b border-neutral-100 bg-white py-16 sm:py-24"
+      className="border-b border-neutral-100 bg-white py-12 sm:py-16"
     >
       <Container>
         {showBandTitle ? (
@@ -43,7 +43,8 @@ export function AboutSection({
 
         <div
           className={cn(
-            "flex flex-wrap justify-center gap-x-6 gap-y-1 border-b border-neutral-200 sm:gap-x-10 md:gap-x-14",
+            "flex flex-nowrap gap-x-4 overflow-x-auto border-b border-neutral-200 sm:gap-x-8 md:gap-x-14",
+            "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             showBandTitle ? "mt-10" : "mt-0"
           )}
           role="tablist"
@@ -59,7 +60,7 @@ export function AboutSection({
               aria-controls={`${uid}-panel`}
               onClick={() => setActive(i)}
               className={cn(
-                "-mb-px border-b-2 border-transparent px-1 pb-3 text-sm font-semibold transition sm:text-base",
+                "-mb-px shrink-0 whitespace-nowrap border-b-3 border-transparent px-1 px-4 md:px-10 pb-3 text-sm font-semibold transition sm:text-base",
                 i === active ? "" : "text-neutral-900 hover:text-neutral-700"
               )}
               style={

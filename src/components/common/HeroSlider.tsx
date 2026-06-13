@@ -29,7 +29,7 @@ export function HeroSlider() {
 
   return (
     <div
-      className="relative"
+      className="relative overflow-hidden"
       onMouseEnter={() => {
         pauseRef.current = true;
       }}
@@ -48,8 +48,39 @@ export function HeroSlider() {
         }}
       />
 
-      <Container className="relative z-10 grid items-center gap-10 py-12 sm:py-14 lg:grid-cols-2 lg:gap-12 lg:py-20">
-        <div>
+      {/* Full-bleed banner image (desktop) — runs to the right edge and fills height */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 hidden lg:block w-[100%]">
+        {heroSlides.map((slide, i) => (
+          <div
+            key={slide.image.src}
+            className={cn(
+              "absolute inset-0 transition-opacity duration-500 ease-out",
+              i === active ? "opacity-100" : "opacity-0"
+            )}
+            aria-hidden={i !== active}
+          >
+            <Image
+              src={slide.image.src}
+              alt={slide.image.alt}
+              fill
+              className="object-cover object-top"
+              sizes="55vw"
+              priority={i === 0}
+            />
+          </div>
+        ))}
+        {/* Blend the image left edge into the lavender background */}
+        <div
+          className="absolute inset-y-0 left-0 w-40"
+          aria-hidden
+          style={{
+            backgroundImage: `linear-gradient(90deg, ${brand.lavender} 0%, rgba(243,238,246,0) 100%)`,
+          }}
+        />
+      </div>
+
+      <Container className="relative z-10 py-12 sm:py-14 lg:py-20">
+        <div className="lg:w-[50%] lg:pr-8 xl:w-[48%]">
           <div
             className="relative min-h-[17.5rem] sm:min-h-[19rem]"
             aria-live="polite"
@@ -80,7 +111,36 @@ export function HeroSlider() {
               </div>
             ))}
           </div>
-          <div className="mt-8">
+
+          {/* Image for small screens (stacked below content) */}
+          <div className="mt-8 lg:hidden">
+            <div className="relative min-h-[260px]">
+              {heroSlides.map((slide, i) => (
+                <div
+                  key={slide.image.src}
+                  className={cn(
+                    "transition-opacity duration-500 ease-out",
+                    i === active
+                      ? "relative z-10 opacity-100"
+                      : "pointer-events-none absolute inset-0 opacity-0"
+                  )}
+                >
+                  <MediaFrame className="min-h-[260px]">
+                    <Image
+                      src={slide.image.src}
+                      alt={slide.image.alt}
+                      width={720}
+                      height={520}
+                      className="h-full min-h-[260px] w-full object-cover object-top"
+                      sizes="100vw"
+                    />
+                  </MediaFrame>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8 flex items-center justify-between gap-4">
             <ButtonLink
               href="#join"
               variant="primary"
@@ -89,57 +149,33 @@ export function HeroSlider() {
             >
               Join the claim
             </ButtonLink>
-          </div>
-        </div>
 
-        <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-          <div className="relative min-h-[280px] sm:min-h-[360px] lg:min-h-[420px]">
-            {heroSlides.map((slide, i) => (
-              <div
-                key={slide.image.src}
-                className={cn(
-                  "transition-opacity duration-500 ease-out",
-                  i === active ? "relative z-10 opacity-100" : "pointer-events-none absolute inset-0 opacity-0"
-                )}
-              >
-                <MediaFrame className="h-full min-h-[280px] sm:min-h-[360px] lg:min-h-[420px]">
-                  <Image
-                    src={slide.image.src}
-                    alt={slide.image.alt}
-                    width={720}
-                    height={900}
-                    className="h-full min-h-[280px] w-full object-cover object-top sm:min-h-[360px] lg:min-h-[420px]"
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    priority={i === 0}
-                  />
-                </MediaFrame>
-              </div>
-            ))}
+            <div
+              className="flex items-center gap-2.5"
+              role="tablist"
+              aria-label="Hero slides"
+            >
+              {heroSlides.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === active}
+                  aria-label={`Go to slide ${i + 1} of ${count}`}
+                  onClick={() => setActive(i)}
+                  className={cn(
+                    "rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400",
+                    i === active
+                      ? "h-3 w-3 scale-100 ring-2 ring-white ring-offset-0"
+                      : "h-2.5 w-2.5 bg-violet-200/90 hover:bg-violet-300"
+                  )}
+                  style={i === active ? { backgroundColor: brand.purple } : undefined}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </Container>
-
-      <div className="relative z-10 flex justify-center px-6 pb-10 pt-2 sm:pb-12 lg:justify-end lg:pr-[max(1.5rem,calc((100vw-1400px)/2+1.5rem))]">
-        <div className="flex items-center gap-2.5" role="tablist" aria-label="Hero slides">
-          {heroSlides.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              role="tab"
-              aria-selected={i === active}
-              aria-label={`Go to slide ${i + 1} of ${count}`}
-              onClick={() => setActive(i)}
-              className={cn(
-                "rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400",
-                i === active
-                  ? "h-3 w-3 scale-100 ring-2 ring-white ring-offset-0"
-                  : "h-2.5 w-2.5 bg-violet-200/90 hover:bg-violet-300"
-              )}
-              style={i === active ? { backgroundColor: brand.purple } : undefined}
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { cn } from "@/lib/cn";
 
 /** Poppins 700, letter-spacing 0 — use under any top-level section title */
 export const topHeadingFontClassName =
-  "font-top-heading font-bold tracking-normal text-[#22313F]";
+  "font-top-heading font-semibold tracking-normal text-[#223645]";
 
 /** Full-width band titles (Fighting, About, …) */
 export const bandSectionTitleClassName = cn(

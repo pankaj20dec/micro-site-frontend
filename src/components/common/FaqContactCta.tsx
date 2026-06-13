@@ -16,9 +16,6 @@ export function FaqContactCta() {
         <div className="mt-3 grid gap-4 sm:grid-cols-2 sm:gap-5">
           <ContactCard title={faqContact.legal.title}>
             <p>{faqContact.legal.description}</p>
-            {faqContact.legal.name ? (
-              <p className="font-semibold text-[#22313F]">{faqContact.legal.name}</p>
-            ) : null}
             <a
               href={`mailto:${faqContact.legal.email}`}
               className="inline-block break-all font-semibold underline-offset-2 hover:underline"

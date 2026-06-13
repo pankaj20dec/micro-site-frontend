@@ -25,8 +25,8 @@ export function HarcusParkerSection() {
   return (
     <Section className="bg-white py-4 sm:py-6 sm:pb-10">
       <Container>
-        <article className="mx-auto max-w-6xl rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-[0_4px_12px_rgba(15,23,42,0.06),0_20px_40px_-12px_rgba(15,23,42,0.18)] sm:p-8 lg:p-10">
-          <div className="grid gap-8 sm:grid-cols-12 sm:items-start sm:gap-10">
+        <article className="mx-auto max-w-6xl rounded-2xl border border-neutral-200/70 bg-white p-4 md:p-6 shadow-[0_4px_12px_rgba(15,23,42,0.06),0_20px_40px_-12px_rgba(15,23,42,0.18)] sm:p-8 lg:p-10">
+          <div className="grid gap-5 sm:grid-cols-12 sm:items-start sm:gap-10">
             <div className="sm:col-span-7">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <h2 className="text-xl font-bold text-[#22313F] sm:text-2xl">
@@ -57,13 +57,13 @@ export function HarcusParkerSection() {
             </div>
           </div>
 
-          <div className="mt-10 grid gap-10 sm:mt-12 sm:grid-cols-2 sm:gap-12">
+          <div className="mt-5 md:mt-10 grid gap-5 sm:mt-12 sm:grid-cols-2 sm:gap-12">
             {harcusParkerPartners.map((partner) => (
               <PartnerBio key={partner.name} name={partner.name} bio={partner.bio} />
             ))}
           </div>
 
-          <QuoteCallout className="mt-10 sm:mt-12" label={harcusParkerQuote.label}>
+          <QuoteCallout className="mt-5 md:mt-10 sm:mt-12" label={harcusParkerQuote.label}>
             &ldquo;{harcusParkerQuote.text}&rdquo;
           </QuoteCallout>
         </article>

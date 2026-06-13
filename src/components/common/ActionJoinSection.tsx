@@ -45,7 +45,7 @@ const joinSteps = [
 
 export function ActionJoinSection() {
   return (
-    <Section className="border-b border-neutral-200/80 bg-[#F8F9FA] py-16 sm:py-20">
+    <Section className="border-b border-neutral-200/80 bg-[#F8F9FA] py-12 sm:py-16">
       <Container>
         <div className="grid gap-10 lg:grid-cols-12 lg:items-start lg:gap-12 xl:gap-14">
           <aside id="explanations" className="scroll-mt-20 flex flex-col gap-3 lg:col-span-4">
@@ -53,7 +53,7 @@ export function ActionJoinSection() {
               className="flex flex-col rounded-xl px-5 py-5 sm:px-8 sm:py-8"
               style={{ backgroundColor: brand.lavender }}
             >
-              <h2 className="text-base font-bold leading-snug text-neutral-900 sm:text-lg">
+              <h2 className="text-base font-semibold leading-snug text-[#223645] sm:text-[24px]">
                 What this action seeks
               </h2>
               <ul className="mt-4 space-y-2.5">
@@ -73,7 +73,7 @@ export function ActionJoinSection() {
               className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-xl px-5 py-5 text-center text-white sm:py-6"
               style={{ backgroundColor: brand.purple }}
             >
-              <p className="text-sm font-semibold sm:text-base">Tell us your experience</p>
+              <p className="text-sm font-medium sm:text-base">Tell us your experience</p>
               <a
                 href="mailto:fipo@harcusparker.co.uk"
                 className="text-base font-bold tracking-tight underline-offset-2 hover:underline sm:text-lg"
@@ -93,13 +93,13 @@ export function ActionJoinSection() {
               How to Join the Action Group
             </h2>
 
-            <div className="mt-8 rounded-xl border border-neutral-200 bg-white p-4 sm:p-6 md:p-8">
+            <div className="mt-8">
               <div className="grid grid-cols-1 sm:grid-cols-2">
                 {joinSteps.map(({ Icon, title, text }, i) => (
                   <div
                     key={title}
                     className={cn(
-                      "flex flex-col items-center px-3 py-8 text-center sm:px-5 sm:py-10",
+                      "flex flex-col items-center px-3 py-4 text-center sm:px-5",
                       "border-b border-neutral-200 last:border-b-0",
                       i < 2 && "sm:border-b sm:border-neutral-200",
                       i >= 2 && "sm:border-b-0",
@@ -109,7 +109,7 @@ export function ActionJoinSection() {
                     <IconStepTile className="mx-auto">
                       <Icon />
                     </IconStepTile>
-                    <p className="mt-5 text-sm font-bold text-neutral-900 sm:text-base">{title}</p>
+                    <p className="mt-5 text-sm font-semibold text-[#223645] sm:text-base">{title}</p>
                     <p className="mt-3 max-w-md text-sm leading-relaxed sm:max-w-none">
                       {text}
                     </p>
@@ -125,11 +125,7 @@ export function ActionJoinSection() {
             </div>
 
             <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed">
-              The action group seeks to restore patient choice, transparent pricing, and clinically-driven care pathways.
-              The aim is not to enrich doctors, but to dismantle a system where non-clinical intermediaries exploit both
-              professionals and patients, who may be directed away from the consultant of their choice, whilst paying
-              increasing premiums and receiving reduced benefits over time. That is unlawful. You may be owed
-              compensation. It costs you little to find out.
+            The action group seeks to restore patient choice, transparent pricing, and clinically-driven care pathways. The aim is not to enrich doctors, but to dismantle a system where non-clinical intermediaries exploit both professionals and patients, who may be directed away from the consultant of their choice, whilst paying increasing premiums and receiving reduced benefits over time.  That is unlawful. You may be owed compensation. It costs you little to find out.
             </p>
           </div>
         </div>

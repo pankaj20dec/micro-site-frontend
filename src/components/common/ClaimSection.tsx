@@ -7,6 +7,7 @@ import {
   IllustrationEconomicTorts,
   IllustrationRestraintOfTrade,
 } from "./ClaimCardIllustrations";
+import { AboutHeadingRule } from "./AboutHeadingRule";
 
 const parallelRestrictions = [
   {
@@ -58,12 +59,15 @@ function ClaimBullet({ label, text }: { label: string; text: string }) {
 
 export function ClaimSection() {
   return (
-    <Section className="py-16 text-white sm:py-20 lg:py-24" style={{ backgroundColor: brand.purple }}>
+    <Section className="py-12 text-white lg:py-16" style={{ backgroundColor: brand.purple }}>
       <Container className="text-center">
+
+        <div>
         <h2 className={cn(bandSectionTitleClassName, "uppercase text-white")}>
           Why we are bringing this claim
         </h2>
-        <div className="mx-auto mt-5 h-px w-14 bg-white" aria-hidden />
+        <AboutHeadingRule tone="white" />
+        </div>
 
         <h3 className="mt-8 text-lg font-bold sm:mt-10 sm:text-xl">What the Insurers Have Done</h3>
 
@@ -91,11 +95,11 @@ export function ClaimSection() {
         <ul className="mx-auto mt-10 grid max-w-5xl gap-6 text-neutral-900 sm:mt-12 sm:gap-8 lg:grid-cols-3">
           {legalCards.map(({ title, text, Illustration }) => (
             <li key={title} className="flex flex-col rounded-xl bg-white px-5 pb-6 pt-4 shadow-lg sm:px-6 sm:pb-8">
-              <Illustration className="mx-auto h-32 w-full max-w-[12rem] sm:h-36" />
+              <Illustration className="mx-auto block h-28 w-28 sm:h-32 sm:w-32" />
               <h4 className="mt-4 text-base font-bold sm:text-lg">{title}</h4>
               <p className="mt-3 flex-1 text-sm leading-relaxed text-neutral-700">{text}</p>
               <div className="mt-6 flex justify-center">
-                <ButtonLink href="/about" variant="primary" size="sm" className="rounded-md px-8">
+                <ButtonLink href="/about" variant="primary" size="sm" className="rounded-[24px] px-8 font-semibold py-4">
                   Read more
                 </ButtonLink>
               </div>
@@ -110,7 +114,7 @@ export function ClaimSection() {
         </p>
 
         <div className="mt-10 flex justify-center sm:mt-12">
-          <ButtonLink href="#join" variant="inverse" size="lg" className="rounded-full px-12 sm:px-14">
+          <ButtonLink href="#join" variant="inverse" size="lg" className="rounded-full px-12 sm:px-14 font-semibold">
             Join the claim
           </ButtonLink>
         </div>

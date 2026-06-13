@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Container, Section } from "@/components/ui";
 import { bandSectionTitleClassName } from "@/lib/bandSectionTitle";
 import { brand } from "@/lib/brand";
+import { AboutHeadingRule } from "@/components/common/AboutHeadingRule";
 
 /** ~35% of typical title width; centre pill ≈25% of rule, thicker than grey rails */
 function FightingHeadingRule() {
@@ -10,28 +11,28 @@ function FightingHeadingRule() {
       className="mx-auto mt-4 flex w-[min(18rem,88vw)] max-w-[20rem] shrink-0 items-center sm:w-[min(19.5rem,40vw)]"
       aria-hidden
     >
-      <div className="h-px w-[37.5%] shrink-0 bg-neutral-200" />
+      <div className="h-px min-h-px w-[20%] shrink-0" style={{ backgroundColor: brand.purple }}/>
       <div
         className="h-2 w-1/4 shrink-0 rounded-full"
         style={{ backgroundColor: brand.purple }}
       />
-      <div className="h-px w-[37.5%] shrink-0 bg-neutral-200" />
+      <div className="h-px min-h-px w-[20%] shrink-0" style={{ backgroundColor: brand.purple }}/>
     </div>
   );
 }
 
 export function FightingSection() {
   return (
-    <Section id="cause" className="border-b border-neutral-100 bg-white py-16 sm:py-24">
+    <Section id="cause" className="border-b border-neutral-100 bg-white py-12 sm:py-18">
       <Container>
         <div>
           <h2 className={bandSectionTitleClassName}>
             FIGHTING FOR FAIR PAY AND PROFESSIONAL FREEDOM
           </h2>
-          <FightingHeadingRule />
+          <AboutHeadingRule />
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-10 sm:mt-12 sm:gap-12 lg:mt-14 lg:grid-cols-12 lg:items-center lg:gap-x-10 lg:gap-y-0 xl:gap-x-14">
+        <div className="mt-5 md:mt-10 grid grid-cols-1 gap-4 sm:mt-12 sm:gap-12 lg:mt-14 lg:grid-cols-12 lg:items-center lg:gap-x-10 lg:gap-y-0 xl:gap-x-14">
           <div className="flex justify-center lg:col-span-5 lg:justify-start">
             <Image
               src="/images/health-professional-team.png"

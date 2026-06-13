@@ -10,4 +10,5 @@ export const brand = {
   divider: "#D1D1D1",
   /** Global text color (body + headings default) */
   text: "#263238",
+  headingText: "#223645",
 } as const;

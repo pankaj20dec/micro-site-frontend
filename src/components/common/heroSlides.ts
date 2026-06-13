@@ -10,26 +10,26 @@ export const heroSlides: readonly HeroSlide[] = [
     title: "Private Insurers Have Kept Your Fees Artificially Low",
     subheading: "It's Time to Fight Back.",
     paragraphs: [
-      "Private insurers have shaped reimbursement in ways that undervalue your expertise and restrict fair pay. This action brings professionals together with a clear, evidence-led strategy.",
-      "Join colleagues who are challenging unfair fee structures through collective representation — transparent milestones, specialist counsel, and a shared commitment to professional freedom.",
+      "FIPO is launching a collective legal action against Bupa and AXA PPP. Join thousands of colleagues to recover the income you should have received.",
+      "Today's practitioners face Hobson's choice - accept fees that have stood still for over thirty years - and that is not even reflecting an inflationary uplift.  Or lose access to over 70% of private patients.",
     ],
     image: {
-      src: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=900&q=80&auto=format&fit=crop",
+      src: "/images/banner-image1.jpg",
       alt: "Doctor in a white coat with stethoscope holding a tablet",
     },
   },
-  {
-    title: "A Coordinated Legal Response For Fair Compensation",
-    subheading: "Strength In Numbers.",
-    paragraphs: [
-      "Competition law, restraint of trade, and economic torts may all be relevant to how your fees have been constrained. Members receive structured support to understand and participate with confidence.",
-      "Registration is straightforward: join the group, complete documents, share evidence where appropriate, and our team coordinates the next legal steps with your advisers.",
-    ],
-    image: {
-      src: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=900&q=80&auto=format&fit=crop",
-      alt: "Medical professional reviewing information on a tablet",
-    }
-  },
+  // {
+  //   title: "A Coordinated Legal Response For Fair Compensation",
+  //   subheading: "Strength In Numbers.",
+  //   paragraphs: [
+  //     "Competition law, restraint of trade, and economic torts may all be relevant to how your fees have been constrained. Members receive structured support to understand and participate with confidence.",
+  //     "Registration is straightforward: join the group, complete documents, share evidence where appropriate, and our team coordinates the next legal steps with your advisers.",
+  //   ],
+  //   image: {
+  //     src: "/images/banner-image2.jpg",
+  //     alt: "Medical professional reviewing information on a tablet",
+  //   }
+  // },
   // {
   //   title: "Evidence-Led, Professionally Led",
   //   subheading: "Clear Milestones. Real Representation.",

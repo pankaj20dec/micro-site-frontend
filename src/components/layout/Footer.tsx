@@ -48,8 +48,8 @@ function IconPin({ className }: { className?: string }) {
 
 function IconFacebook({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M14 8h2.5V5h-2.8c-2.7 0-4.2 1.6-4.2 4v1.5H7v3h1.5V19h3.5v-6.5H16V9h-2z" />
+    <svg width="13" height="24" viewBox="0 0 13 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fillRule="evenodd" clipRule="evenodd" d="M8.81982 24.0058V13.2032H12.3528L12.9298 8.40206H8.81982V6.0636C8.81982 4.82755 8.85382 3.60088 10.7148 3.60088H12.5997V0.168205C12.5997 0.11663 10.9807 0 9.34268 0C5.92189 0 3.77991 1.98916 3.77991 5.64162V8.40206H0V13.2032H3.77991V24.0058H8.81982Z" fill="white"/>
     </svg>
   );
 }
@@ -64,8 +64,8 @@ function IconTwitter({ className }: { className?: string }) {
 
 function IconLinkedIn({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M6.5 8.5h3v9h-3v-9zm1.5-4.5a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5zM10 8.5h2.9v1.2h.1c.4-.8 1.4-1.6 2.9-1.6 3.1 0 3.7 2 3.7 4.6v5.3H16v-4.7c0-1.1 0-2.6-1.6-2.6s-1.8 1.2-1.8 2.5v4.8H10V8.5z" />
+    <svg width="26" height="22" viewBox="0 0 26 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fillRule="evenodd" clipRule="evenodd" d="M0.839763 21.9276H4.20167C4.66548 21.9276 5.04142 21.5786 5.04142 21.148V7.50662C5.04142 7.07601 4.66548 6.72705 4.20167 6.72705H0.839763C0.375905 6.72705 0 7.076 0 7.50662V21.148C0 21.5785 0.375905 21.9276 0.839763 21.9276ZM0.839763 4.33049H4.20167C4.66548 4.33049 5.04142 3.9815 5.04142 3.55094V0.779562C5.04142 0.349 4.66548 0 4.20167 0H0.839763C0.375905 0 0 0.349 0 0.779562V3.55094C0 3.9815 0.375905 4.33049 0.839763 4.33049ZM24.5937 8.30914C24.1213 7.73188 23.4247 7.25715 22.5036 6.88504C21.5825 6.5132 20.5658 6.32715 19.4535 6.32715C17.1953 6.32715 15.2819 7.12717 13.7132 8.7275C13.4011 9.04593 13.1741 8.97631 13.1741 8.5457V7.50648C13.1741 7.07588 12.7981 6.72692 12.3343 6.72692H9.3312C8.86734 6.72692 8.49144 7.07588 8.49144 7.50648V21.1479C8.49144 21.5784 8.8674 21.9275 9.3312 21.9275H12.6931C13.157 21.9275 13.5329 21.5784 13.5329 21.1479V16.4038C13.5329 14.4273 13.6614 13.0726 13.9186 12.3399C14.1756 11.607 14.6512 11.0186 15.3449 10.5745C16.0387 10.1303 16.822 9.90814 17.6953 9.90814C18.377 9.90814 18.9601 10.0636 19.4446 10.3746C19.9291 10.6856 20.279 11.1212 20.4943 11.682C20.7097 12.2428 20.8173 13.478 20.8173 15.3879V21.1478C20.8173 21.5784 21.1932 21.9274 21.657 21.9274H25.0189C25.4827 21.9274 25.8586 21.5784 25.8586 21.1478V13.4225C25.8586 12.0568 25.7659 11.0075 25.5807 10.2747C25.3954 9.54189 25.0664 8.88672 24.5937 8.30914Z" fill="white"/>
     </svg>
   );
 }
@@ -94,7 +94,7 @@ function SocialIcon({
 
 function FooterBrandCard() {
   return (
-    <div className="relative z-10 -mt-14 w-full max-w-[14rem] rounded-xl bg-white px-6 py-6 shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:-mt-24 sm:max-w-[20rem] sm:px-6 sm:py-6">
+    <div className="relative z-10 -mt-14 w-full md:max-w-[20rem] rounded-xl bg-white px-6 py-6 shadow-[0_10px_40px_rgba(0,0,0,0.15)] sm:-mt-24 sm:max-w-[20rem] sm:px-6 sm:py-6">
       <div className="flex items-start gap-3 border-b-[2px] border-neutral-200 pb-4">
         <span className="mt-0.5 shrink-0">
           <Image
@@ -117,7 +117,7 @@ function FooterBrandCard() {
         </div>
       </div>
       <div className="flex max-w-full flex-col mb-4">
-          <p className="text-[120px] font-bold uppercase tracking-wide text-[#660066] leading-none">FIPO</p>
+          <p className="text-[100px] md:text-[120px] font-bold uppercase tracking-wide text-[#660066] leading-none">FIPO</p>
         <p className="text-[#8F8F8F] font-bold text-center mb-5">Federation of Independent Practitioner Organisations</p>
         <Link href="https://harcusparker.co.uk" target="_blank" rel="noopener noreferrer">
           <Image
@@ -189,13 +189,13 @@ export function Footer() {
             </ul>
             <div className="mt-5 flex items-center gap-5">
               <SocialIcon href="https://www.facebook.com/" label="Facebook">
-                <IconFacebook className="h-4.5 w-4.5 sm:h-8 sm:w-5" />
+                <IconFacebook className="h-4 w-4 sm:h-4 sm:w-4" />
               </SocialIcon>
               <SocialIcon href="https://twitter.com/" label="X (Twitter)">
-                <IconTwitter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <IconTwitter className="h-6 w-6 sm:h-8 sm:w-8" />
               </SocialIcon>
               <SocialIcon href="https://www.linkedin.com/" label="LinkedIn">
-                <IconLinkedIn className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <IconLinkedIn className="h-4 w-4 sm:h-4 sm:w-4" />
               </SocialIcon>
             </div>
           </div>

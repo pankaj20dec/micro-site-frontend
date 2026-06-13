@@ -43,7 +43,7 @@ export function ProfileCard({
   return (
     <article
       className={cn(
-        "mx-auto rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-[0_4px_12px_rgba(15,23,42,0.06),0_20px_40px_-12px_rgba(15,23,42,0.18)] sm:p-8 lg:p-10",
+        "mx-auto rounded-2xl border border-neutral-200/70 bg-white p-4 md:p-6 shadow-[0_4px_12px_rgba(15,23,42,0.06),0_20px_40px_-12px_rgba(15,23,42,0.18)] sm:p-8 lg:p-10",
         className
       )}
     >

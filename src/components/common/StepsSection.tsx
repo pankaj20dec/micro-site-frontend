@@ -1,6 +1,7 @@
 import { bandSectionTitleClassName } from "@/lib/bandSectionTitle";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/cn";
+import { AboutHeadingRule } from "./AboutHeadingRule";
 import {
   ButtonLink,
   Container,
@@ -53,14 +54,14 @@ function StepsHeadingRule() {
 
 export function StepsSection() {
   return (
-    <Section className="border-b border-neutral-100 bg-[#F8F9FA] py-16 sm:py-20 lg:py-24">
+    <Section className="border-b border-neutral-100 bg-[#DDDDDD] py-12 lg:py-16">
       <Container className="text-center">
-        <h2 className={cn(bandSectionTitleClassName, "uppercase")}>
+        <h2 className={cn(bandSectionTitleClassName, "uppercase font-bold")}>
           How to join the action group
         </h2>
-        <StepsHeadingRule />
+        <AboutHeadingRule />
 
-        <p className="mt-6 text-sm font-bold text-neutral-900 sm:text-base">Four Simple Steps</p>
+        <p className="mt-6 text-sm font-bold text-[#223645] sm:text-base">Four Simple Steps</p>
 
         <ol className="mx-auto mt-10 grid max-w-6xl grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           {steps.map(({ Icon, title, text }) => (
