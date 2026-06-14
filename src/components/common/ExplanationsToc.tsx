@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/cn";
-import { explanationsToc } from "@/lib/explanations-content";
+import { explanationsContact, explanationsToc } from "@/lib/explanations-content";
 
 export function ExplanationsToc({ className }: { className?: string }) {
   const [activeId, setActiveId] = useState<string>(explanationsToc[0]?.id ?? "");
@@ -32,46 +32,51 @@ export function ExplanationsToc({ className }: { className?: string }) {
   }, []);
 
   return (
-    <nav
-      aria-label="On this page"
-      className={cn(
-        "rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_2px_6px_rgba(15,23,42,0.04)] sm:p-6",
-        className
-      )}
-    >
-      <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">
-        On this page
-      </p>
-      <ol className="mt-3 flex flex-col gap-1.5 text-sm">
-        {explanationsToc.map((entry) => {
-          const active = entry.id === activeId;
-          return (
-            <li key={entry.id}>
-              <a
-                href={`#${entry.id}`}
-                className={cn(
-                  "group flex items-start gap-2 rounded-md px-2 py-1.5 leading-snug transition-colors",
-                  active
-                    ? "font-semibold"
-                    : "text-neutral-700 hover:text-neutral-900"
-                )}
-                style={active ? { color: brand.purple } : undefined}
-                aria-current={active ? "true" : undefined}
+    <div className={cn("flex flex-col gap-6", className)}>
+      <nav
+        aria-label="On this page"
+        className="rounded-2xl bg-[#F4EFF6] px-6 py-6 sm:px-7 sm:py-7"
+      >
+        <ul className="flex flex-col">
+          {explanationsToc.map((entry, index) => {
+            const active = entry.id === activeId;
+            return (
+              <li
+                key={entry.id}
+                className={cn(index > 0 && "border-t border-[#E2D2E5]")}
               >
-                <span
-                  aria-hidden
+                <a
+                  href={`#${entry.id}`}
                   className={cn(
-                    "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
-                    active ? "" : "bg-neutral-300 group-hover:bg-neutral-400"
+                    "block py-3.5 text-sm font-medium leading-snug transition-colors",
+                    active ? "font-semibold" : "text-[#3F3247] hover:text-[#802B7D]"
                   )}
-                  style={active ? { backgroundColor: brand.purple } : undefined}
-                />
-                <span>{entry.label}</span>
-              </a>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
+                  style={active ? { color: brand.purple } : undefined}
+                  aria-current={active ? "true" : undefined}
+                >
+                  {entry.label}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div
+        className="rounded-2xl px-6 py-7 text-center text-white"
+        style={{ backgroundColor: brand.purple }}
+      >
+        <p className="text-lg font-bold">{explanationsContact.title}</p>
+        <p className="mt-3 text-sm leading-relaxed text-white/85">
+          {explanationsContact.note}
+        </p>
+        <a
+          href={`mailto:${explanationsContact.email}`}
+          className="mt-2 block break-words text-base font-bold text-white underline-offset-2 hover:underline"
+        >
+          {explanationsContact.email}
+        </a>
+      </div>
+    </div>
   );
 }

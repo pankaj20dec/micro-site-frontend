@@ -9,6 +9,10 @@ type FieldKey = "name" | "email" | "subject" | "message";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
+/** Contact API base URL. Override with NEXT_PUBLIC_API_URL in your env. */
+const CONTACT_API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+
 const initialValues: Record<FieldKey, string> = {
   name: "",
   email: "",
@@ -34,15 +38,23 @@ export function ContactForm({ className }: { className?: string }) {
     if (status === "submitting") return;
     setStatus("submitting");
     try {
-      // No public submission endpoint yet — fall back to a mailto compose so
-      // the user's draft is never lost. Keeps UX honest until the API exists.
-      const body = `From: ${values.name} <${values.email}>\n\n${values.message}`;
-      const mailto = `mailto:office@fipo.uk?subject=${encodeURIComponent(
-        values.subject
-      )}&body=${encodeURIComponent(body)}`;
-      if (typeof window !== "undefined") {
-        window.location.href = mailto;
+      const res = await fetch(`${CONTACT_API_URL}/api/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.name,
+          email: values.email,
+          subject: values.subject,
+          message: values.message,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message ?? "Request failed");
       }
+
       setStatus("success");
       setValues(initialValues);
     } catch {

@@ -7,8 +7,8 @@ export type HeroSlide = {
 
 export const heroSlides: readonly HeroSlide[] = [
   {
-    title: "Private Insurers Have Kept Your Fees Artificially Low",
-    subheading: "It's Time to Fight Back.",
+    title: "Private Insurers have kept your fees artificially low",
+    subheading: "It's time to fight back.",
     paragraphs: [
       "FIPO is launching a collective legal action against Bupa and AXA PPP. Join thousands of colleagues to recover the income you should have received.",
       "Today's practitioners face Hobson's choice - accept fees that have stood still for over thirty years - and that is not even reflecting an inflationary uplift.  Or lose access to over 70% of private patients.",

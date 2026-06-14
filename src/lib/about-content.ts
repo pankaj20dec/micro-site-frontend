@@ -11,15 +11,20 @@ export const aboutTabPanels = [
   {
     heading: "Why We Are Doing This",
     paragraphs: [
-      "FIPO launched the Fair Pay Action Group because the conduct of major private medical insurers has suppressed practitioner earnings and constrained how consultants deal with their patients. We believe those outcomes should be tested under UK competition law and related common-law principles, and that affected members deserve coordinated representation.",
-      "This section of the site explains what the group seeks, how to join, and what happens next — so you can make an informed choice about participating.",
+      "For years, FIPO has raised the alarm about the way private medical insurers — in particular Bupa and AXA PPP — have used their dominant market position and restrictive agreements and arrangements to suppress the fees paid to practitioners. Despite our repeated representations, the problem has not been resolved through voluntary action.",
+      "We believe that what has happened goes beyond commercial hardball. It is, we contend, a systematic breach of competition law — specifically the Chapter I and Chapter II prohibitions under the Competition Act 1998 — and constitutes an unlawful restraint of trade at common law and multiple “unlawful means” torts. Put simply: the insurers fixed the market, and practitioners and patients have been paying the price.",
+      "The Fair Pay Action Group is the next step in that long campaign. It is not a departure from our mission — it is its fulfilment."
     ],
   },
   {
     heading: "Why You Can Trust Us",
-    paragraphs: [
-      "FIPO is a not-for-profit professional body with charitable objectives focused on independent practitioners and the public interest in private healthcare. We do not exist to enrich directors or shareholders; we exist to advocate for fair markets and professional standards.",
-      "The Fair Pay Action Group is pursued together with experienced competition litigation solicitors, with clear governance and regular updates to members as the claim progresses.",
+    paragraphs: [],
+    bullets: [
+      "We have been advocating for practitioners' interests for over 25 years",
+      "We have no financial interest in the outcome beyond the profession's wellbeing",
+      "We have instructed leading litigation, competition law and regulatory specialists at Harcus Parker and leading barrister Suzanne Rab at Matrix Chambers",
+      "Your subscription funds are ring-fenced and protected — they cannot be used for our general purposes",
+      "We will keep you informed and consult you on major decisions",
     ],
   },
 ] as const;

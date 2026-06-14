@@ -125,7 +125,7 @@ export function ActionJoinSection() {
             </div>
 
             <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed">
-            The action group seeks to restore patient choice, transparent pricing, and clinically-driven care pathways. The aim is not to enrich doctors, but to dismantle a system where non-clinical intermediaries exploit both professionals and patients, who may be directed away from the consultant of their choice, whilst paying increasing premiums and receiving reduced benefits over time.  That is unlawful. You may be owed compensation. It costs you little to find out.
+            The Action Group seeks to restore patient choice, transparent pricing, and clinically-driven care pathways. The aim is not to enrich doctors, but to dismantle a system where non-clinical intermediaries exploit both professionals and patients, who may be directed away from the consultant of their choice, whilst paying increasing premiums and receiving reduced benefits over time.  That is unlawful. You may be owed compensation. It costs you little to find out.
             </p>
           </div>
         </div>

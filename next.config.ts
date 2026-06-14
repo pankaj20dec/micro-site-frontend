@@ -7,6 +7,9 @@ const backendOrigin = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000
 
 const nextConfig: NextConfig = {
   images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {
         protocol: "https",

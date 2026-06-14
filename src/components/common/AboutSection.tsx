@@ -97,8 +97,22 @@ export function AboutSection({
             <h3 className="text-xl font-bold text-neutral-900 sm:text-2xl">{panel.heading}</h3>
             <div className="mt-5 space-y-4 text-base leading-relaxed">
               {panel.paragraphs.map((p, idx) => (
-                <p key={`${active}-${idx}`}>{p}</p>
+                <p key={`${active}-p-${idx}`}>{p}</p>
               ))}
+              {"bullets" in panel && panel.bullets.length > 0 ? (
+                <ul className="flex flex-col gap-4">
+                  {panel.bullets.map((item, idx) => (
+                    <li key={`${active}-b-${idx}`} className="flex gap-3">
+                      <span
+                        aria-hidden
+                        className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: brand.purple }}
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
             <div className="mt-8 flex justify-start">
               <ButtonLink href={joinHref} variant="primary" size="lg" className="rounded-full px-8 sm:px-10">

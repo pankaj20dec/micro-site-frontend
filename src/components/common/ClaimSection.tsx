@@ -31,20 +31,30 @@ const parallelRestrictions = [
 const legalCards = [
   {
     title: "Competition Law",
-    text: "Network effects (Chapter I of the Competition Act 1998). The Chapter I claim does not depend on Bupa and AXA PPP having coordinated with each other at all. The argument",
+    paragraphs: [
+      "a) Network effects (Chapter I of the Competition Act 1998). The Chapter I claim does not depend on Bupa and AXA PPP having coordinated with each other at all. The argument is different: each insurer has its own web of individual agreements with practitioners — fee schedules, recognition terms, and so on. When you look at those agreements across the whole market, their cumulative effect is to lock practitioners into artificially low fees and restrict competition across the sector as a whole. The market ends up being distorted not because the insurers conspired together, but because each insurer's network of agreements, taken together with the other's, forecloses the market. This is what the landmark case of Delimitis v Henninger Bräu established — that a web of individually innocent-looking agreements can collectively breach competition law without any coordination between the parties operating them. Coordination between Bupa and AXA is not ruled out, but we do not need to prove it.",
+      "b) Abuse of dominant position (Chapter II of the Competition Act 1998). Separately, each insurer may have abused its own individual market dominance by imposing unfairly low fees and restrictive practices on practitioners. This stands entirely on its own and requires no link between the two insurers whatsoever.",
+    ],
     Illustration: IllustrationCompetitionLaw,
   },
   {
-    title: "Restraint Of Trade",
-    text: "This is an older common law principle, independent of statute. It prevents economically powerful actors from distorting a market in ways that cause unjustified harm to others",
+    title: "Restraint of Trade",
+    paragraphs: [
+      "This is an older common law principle, independent of statute. It prevents economically powerful actors from distorting a market in ways that cause unjustified harm to others — a flexible backstop that supports the competition law claims.",
+    ],
     Illustration: IllustrationRestraintOfTrade,
   },
   {
     title: "Economic Torts",
-    text: "This is the most direct expression of the harm to individual practitioners. The insurers have not merely set low fees passively — we contend they have actively interfered",
+    paragraphs: [
+      "This is the most direct expression of the harm to individual practitioners. The insurers have not merely set low fees passively — we contend they have actively interfered with practitioners' freedom to deal with patients on their own terms, using unlawful means to do so. Where that interference is deliberate and causes financial loss, it gives rise to a direct personal claim for compensation.",
+    ],
     Illustration: IllustrationEconomicTorts,
   },
 ] as const;
+
+const scrollableContentClassName =
+  "mt-3 max-h-40 flex-1 overflow-y-auto pr-1 text-left text-sm leading-relaxed text-neutral-700 [scrollbar-color:#521f52_#f3f4f6] [scrollbar-width:thin] sm:max-h-52 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#521f52]/60 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-neutral-100";
 
 function ClaimBullet({ label, text }: { label: string; text: string }) {
   return (
@@ -69,7 +79,7 @@ export function ClaimSection() {
         <AboutHeadingRule tone="white" />
         </div>
 
-        <h3 className="mt-8 text-lg font-bold sm:mt-10 sm:text-xl">What the Insurers Have Done</h3>
+        <h3 className="mt-8 text-lg font-bold sm:mt-10 sm:text-xl">What the Insurers have done</h3>
 
         <div className="mx-auto mt-8 max-w-4xl space-y-5 text-sm leading-relaxed sm:text-base">
           <p>
@@ -93,18 +103,26 @@ export function ClaimSection() {
         </div>
 
         <ul className="mx-auto mt-10 grid max-w-5xl gap-6 text-neutral-900 sm:mt-12 sm:gap-8 lg:grid-cols-3">
-          {legalCards.map(({ title, text, Illustration }) => (
-            <li key={title} className="flex flex-col rounded-xl bg-white px-5 pb-6 pt-4 shadow-lg sm:px-6 sm:pb-8">
-              <Illustration className="mx-auto block h-28 w-28 sm:h-32 sm:w-32" />
-              <h4 className="mt-4 text-base font-bold sm:text-lg">{title}</h4>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-neutral-700">{text}</p>
-              <div className="mt-6 flex justify-center">
-                <ButtonLink href="/about" variant="primary" size="sm" className="rounded-[24px] px-8 font-semibold py-4">
-                  Read more
-                </ButtonLink>
-              </div>
-            </li>
-          ))}
+          {legalCards.map((card) => {
+            const { title, Illustration } = card;
+
+            return (
+              <li
+                key={title}
+                className="flex flex-col rounded-xl bg-white px-5 pb-6 pt-4 shadow-lg sm:px-6 sm:pb-8"
+              >
+                <Illustration className="mx-auto block h-28 w-28 sm:h-32 sm:w-32" />
+                <h4 className="mt-4 text-base font-bold sm:text-lg">{title}</h4>
+                <div className={scrollableContentClassName}>
+                  <div className="space-y-4">
+                    {card.paragraphs.map((paragraph, index) => (
+                      <p key={index}>{paragraph}</p>
+                    ))}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
 
         <h3 className="mt-12 text-lg font-bold sm:mt-16 sm:text-xl">In plain terms — tying it all together:</h3>
