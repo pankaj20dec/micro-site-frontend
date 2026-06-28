@@ -74,7 +74,7 @@ export function ClaimSection() {
 
         <div>
         <h2 className={cn(bandSectionTitleClassName, "uppercase text-white")}>
-          Why we are bringing this claim
+          Why we are bringing this Claim
         </h2>
         <AboutHeadingRule tone="white" />
         </div>
@@ -83,9 +83,9 @@ export function ClaimSection() {
 
         <div className="mx-auto mt-8 max-w-4xl space-y-5 text-sm leading-relaxed sm:text-base">
           <p>
-          Private medical insurance companies, including Bupa and AXA PPP, are the dominant purchasers of private medical services in the UK. Between them they control a very large proportion of the market through which patients pay for private treatment. That market dominance gives them enormous leverage over what they pay doctors and other practitioners.
+          Private medical Insurance companies, including Bupa and AXA PPP, are the dominant purchasers of private medical services in the UK. Between them they control a very large proportion of the market through which patients pay for private treatment. That market dominance gives them enormous leverage over what they pay doctors and other practitioners.
           </p>
-          <p><strong>The evidence:</strong> supposedly independent insurance companies have developed virtually identical contract and fee practices. These ‘parallel’ restrictions include:
+          <p><strong>The evidence:</strong> supposedly independent Insurance companies have developed virtually identical contract and fee practices. These ‘parallel’ restrictions include:
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export function ClaimSection() {
 
         <div className="mt-10 flex justify-center sm:mt-12">
           <ButtonLink href="#join" variant="inverse" size="lg" className="rounded-full px-12 sm:px-14 font-semibold">
-            Join the claim
+            Join the Claim
           </ButtonLink>
         </div>
       </Container>

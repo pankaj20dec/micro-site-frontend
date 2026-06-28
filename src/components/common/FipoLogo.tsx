@@ -15,11 +15,11 @@ export function FipoLogo({ className }: { className?: string }) {
     >
       <div className="text-left" style={{ color: brand.purple }}>
       <Image
-        src="/images/logo.png"
+        src="/images/bottom-logo.png"
         alt="FIPO Logo - Federation of Independent Practitioner Organisations"
-        width={160}
+        width={240}
         height={80}
-        className="h-auto w-[160px] object-contain"
+        className="h-auto w-[240px] object-contain"
         priority
       />
       </div>

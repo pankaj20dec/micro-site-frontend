@@ -147,7 +147,7 @@ export function HeroSlider() {
               size="md"
               className="rounded-full px-8 py-3 text-xs sm:text-sm"
             >
-              Join the claim
+              Join the Claim
             </ButtonLink>
 
             <div

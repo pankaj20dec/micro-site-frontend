@@ -108,7 +108,7 @@ export function MobileMenu() {
               size="md"
               className="w-full rounded-full py-3 text-[11px]"
             >
-              Join the claim
+              Join the Claim
             </ButtonLink>
           </div>
         </nav>

@@ -74,7 +74,7 @@ export const explanationsLegalNotice = {
     {
       title: "A Note on Competition Law",
       body: [
-        "FIPO takes competition law seriously — it is, after all, at the heart of this claim. Before proceeding, please note the following.",
+        "FIPO takes competition law seriously — it is, after all, at the heart of this Claim. Before proceeding, please note the following.",
         "Joining the Fair Pay Action Group is an individual decision. It does not involve, and must not involve, any agreement, understanding or coordination between practitioners regarding their own fees, the terms on which they accept or decline patients, or any other aspect of their commercial conduct. The decision of a practitioner on whether to join the action should be taken independently, based on their own assessment of their own circumstances.",
         "FIPO's role is limited to running the collective legal claim on claimants' behalf, as described in this site. It does not coordinate, advise on, or facilitate any commercial arrangements between claimants, and those considering or joining the action should not treat their participation in this action as a basis for discussing or aligning their pricing or commercial practices with one another.",
         "If you have any concerns about how competition law applies to your own practice, you should seek independent legal advice.",
@@ -101,7 +101,7 @@ export const explanationsHowToJoin = {
     },
     {
       number: "03",
-      lead: "Execute a power of attorney in FIPO's favour",
+      lead: "Execute a Power of Attorney in FIPO's favour",
       body: "authorising FIPO to bring proceedings against the PMIs on your behalf and to agree to Harcus Parker's and Counsel's retainers, and in particular to enter into a DBA with Harcus Parker on your behalf, as a result of which the damages associated with your claim will be reduced by a fee of 32.5% if you paid a subscription of £250 and of 30% if you paid a subscription of £500.",
     },
     {
@@ -122,7 +122,7 @@ export const explanationsClaimStructure = {
   title: "How the Claim Is Structured",
   paragraphs: [
     "The Claim is brought as a coordinated group action. FIPO acts as the claimant representative and instructs Harcus Parker, who lead the litigation, together with specialist counsel. Each member's individual claim remains their own, but the cases are run together under a single, shared strategy.",
-    "This gives members the benefit of collective scale — shared costs, shared evidence and a single, well-resourced legal team — while keeping the conduct of the litigation in the hands of experienced solicitors rather than individual practitioners.",
+    "This gives members the benefit of collective scale — shared costs, shared evidence and a single, well-resourced Legal Team — while keeping the conduct of the litigation in the hands of experienced solicitors rather than individual practitioners.",
   ],
 } as const;
 
@@ -164,7 +164,7 @@ export const explanationsSubscriptions = {
   ],
   bullets: [
     "Subscriptions will be held in a separate, ring-fenced account (most likely a client account of Harcus Parker) entirely separate from FIPO's general funds;",
-    "Subscriptions will not be used for FIPO's general purposes unless and until the claims progress beyond the pre-action phase and a balance remains after ATE insurance has been purchased. If FIPO were to become insolvent, your subscription would be protected and could not be claimed by FIPO's creditors.",
+    "Subscriptions will not be used for FIPO's general purposes unless and until the Claims progress beyond the pre-action phase and a balance remains after ATE insurance has been purchased. If FIPO were to become insolvent, your subscription would be protected and could not be claimed by FIPO's creditors.",
   ],
 } as const;
 
@@ -172,7 +172,7 @@ export const explanationsCostsRisk = {
   id: "costs-risk",
   title: "How You Are Protected From Costs Risk",
   intro:
-    "Any litigation carries the risk of an adverse costs order — meaning that if the claim fails, you might be ordered to pay the defendants' legal costs. This is a real risk that we take seriously. Here is how the structure protects you:",
+    "Any litigation carries the risk of an adverse costs order — meaning that if the Claim fails, you might be ordered to pay the defendants' legal costs. This is a real risk that we take seriously. Here is how the structure protects you:",
   steps: [
     {
       number: "01",
@@ -187,7 +187,7 @@ export const explanationsCostsRisk = {
     {
       number: "03",
       lead: "Third-Party Funder:",
-      body: "Any third-party funder of the claim also accepts responsibility for adverse costs and — as an institution — is a more accessible target than thousands of individual practitioners.",
+      body: "Any third-party funder of the Claim also accepts responsibility for adverse costs and — as an institution — is a more accessible target than thousands of individual practitioners.",
     },
     {
       number: "04",
@@ -202,7 +202,7 @@ export const explanationsCostsRisk = {
       "Strength of collective action;",
       "After-The-Event insurance protection;",
       "Proportionate share of any damages recovered;",
-      "Pressure on insurance companies to reform their practices.",
+      "Pressure on Insurance companies to reform their practices.",
     ],
     note: "The structure has been designed so that it is highly unlikely that you will face any personal financial liability, even if the claim is unsuccessful.",
   },
@@ -297,14 +297,14 @@ export const explanationsKeyImplications = {
       parts: [
         {
           bullets: [
-            "After a 14-day cooling-off period, you cannot change your mind after you have signed the power of attorney and joined the action group. You cannot unilaterally revoke or cancel it.",
-            "The power of attorney will remain in force until [  ] which is the date when it expires, by which time the Claims should have concluded.",
-            "The power of attorney will also expire if you die or become incapable.",
+            "After a 14-day cooling-off period, you cannot change your mind after you have signed the Power of Attorney and joined the action group. You cannot unilaterally revoke or cancel it.",
+            "The Power of Attorney will remain in force until [  ] which is the date when it expires, by which time the Claims should have concluded.",
+            "The Power of Attorney will also expire if you die or become incapable.",
             "FIPO can however exercise its discretion to discontinue your claim if you become an Obstructive Claimant under the terms of the LMA.",
           ],
         },
         {
-          lead: "Why the power of attorney must be irrevocable:",
+          lead: "Why the Power of Attorney must be irrevocable:",
           bullets: [
             "FIPO, its advisers and potential funders, need certainty to pursue expensive litigation;",
             "FIPO will be taking a significant and serious step on your behalf by issuing a claim in the High Court on your behalf;",
@@ -315,7 +315,7 @@ export const explanationsKeyImplications = {
         {
           lead: "What if nevertheless you want to withdraw?",
           bullets: [
-            "if you become obstructive, and do not cooperate, FIPO can decide to discontinue your claim. Discontinuance is usually followed by a costs order in favour of the defendant, as it is an acceptance that the claim should not have been brought and (even if other Claims succeed) the defendant will have wasted time and costs on the discontinued claim;",
+            "if you become obstructive, and do not cooperate, FIPO can decide to discontinue your claim. Discontinuance is usually followed by a costs order in favour of the defendant, as it is an acceptance that the Claim should not have been brought and (even if other Claims succeed) the defendant will have wasted time and costs on the discontinued claim;",
             "the only way to withdraw without cost (which is unlikely to be agreed once proceedings are issued is by agreement between FIPO and the defendants.",
           ],
         },
@@ -345,7 +345,7 @@ export const explanationsDamages: {
   id: "damages",
   title: "How Damages Will Be Distributed",
   intro:
-    "If the case succeeds at trial, a specific amount will be allocated to each practitioner's claim (or a formula will be set out which leads to a specific amount). Settlement, however, provides for more flexibility, and the text below describes what is likely to happen. The following example uses illustrative figures only and does not represent any estimate of the value of the claims.",
+    "If the case succeeds at trial, a specific amount will be allocated to each practitioner's claim (or a formula will be set out which leads to a specific amount). Settlement, however, provides for more flexibility, and the text below describes what is likely to happen. The following example uses illustrative figures only and does not represent any estimate of the value of the Claims.",
   steps: [
     {
       number: "01",
@@ -410,7 +410,7 @@ export const explanationsTax = {
   bullets: [
     "Damages for lost income are typically taxable as income in the year of receipt, although it may be possible to spread the charge across the years to which the losses relate.",
     "You may be able to deduct legal costs from the damages received for tax purposes.",
-    "You should inform your accountant about your participation in the claim when filing your tax returns.",
+    "You should inform your accountant about your participation in the Claim when filing your tax returns.",
   ],
 } as const;
 
@@ -421,22 +421,22 @@ export const explanationsDocuments = {
     {
       number: "01",
       title: "The Retainer and Damages-Based Agreement with Harcus Parker",
-      body: "FIPO will enter into this agreement on your behalf, exercising the authority you give it under the power of attorney. The DBA means that if your claim succeeds, Harcus Parker’s fees will be deducted from your damages (at the rate of 32.5% or 30% + VAT depending on your subscription level). If your claim does not succeed, you will owe Harcus Parker nothing.",
+      body: "FIPO will enter into this agreement on your behalf, exercising the authority you give it under the Power of Attorney. The DBA means that if your claim succeeds, Harcus Parker’s fees will be deducted from your damages (at the rate of 32.5% or 30% + VAT depending on your subscription level). If your claim does not succeed, you will owe Harcus Parker nothing.",
     },
     {
       number: "02",
       title: "The Power of Attorney",
-      body: ["This is the key document. By signing it, you authorise FIPO to bring your claim on your behalf, to instruct lawyers on your behalf, and to make all decisions in relation to your claim — including whether and when to settle. You should read it carefully.", "The power of attorney becomes irrevocable after a 14-day cooling-off period. If you die or become incapacitated while the claim is ongoing, the power of attorney will be automatically revoked and your personal representatives will need to execute a new one to continue your claim."]
+      body: ["This is the key document. By signing it, you authorise FIPO to bring your claim on your behalf, to instruct lawyers on your behalf, and to make all decisions in relation to your claim — including whether and when to settle. You should read it carefully.", "The Power of Attorney becomes irrevocable after a 14-day cooling-off period. If you die or become incapacitated while the Claim is ongoing, the Power of Attorney will be automatically revoked and your personal representatives will need to execute a new one to continue your claim."]
     },
     {
       number: "03",
       title: "The Litigation Management Agreement (LMA)",
-      body: "The LMA is the agreement between you, FIPO and Harcus Parker that governs how the claim is run. It covers: decision-making, your obligations to cooperate (including providing disclosure and potentially giving evidence), how costs are shared, and how damages are distributed.",
+      body: "The LMA is the agreement between you, FIPO and Harcus Parker that governs how the Claim is run. It covers: decision-making, your obligations to cooperate (including providing disclosure and potentially giving evidence), how costs are shared, and how damages are distributed.",
     },
     {
       number: "04",
       title: "The Overarching Declaration",
-      body: "The LMA is the agreement between you, FIPO and Harcus Parker that governs how the claim is run. It covers: decision-making, your obligations to cooperate (including providing disclosure and potentially giving evidence), how costs are shared, and how damages are distributed.",
+      body: "The LMA is the agreement between you, FIPO and Harcus Parker that governs how the Claim is run. It covers: decision-making, your obligations to cooperate (including providing disclosure and potentially giving evidence), how costs are shared, and how damages are distributed.",
     },
   ],
   footnote: {
@@ -465,18 +465,18 @@ export const explanationsDocuments = {
       ],
     },
     powerOfAttorney: {
-      title: "THE POWER OF ATTORNEY",
+      title: "THE Power of Attorney",
       paragraphs: [
-        "The power of attorney is your way of giving authority to FIPO to act as the claimant in the intended litigation.",
+        "The Power of Attorney is your way of giving authority to FIPO to act as the claimant in the intended litigation.",
         "Please note that the delegation of authority to FIPO is complete and extends to decisions about settlement as well as strategy and day to day conduct.",
-        "Please also note that if you die or become incapable while the Claims are ongoing, the power of attorney will be revoked. It will be necessary for your attorney under an LPA or your personal representatives to execute a further power of attorney.",
+        "Please also note that if you die or become incapable while the Claims are ongoing, the Power of Attorney will be revoked. It will be necessary for your attorney under an LPA or your personal representatives to execute a further Power of Attorney.",
       ],
     },
     litigationManagement: {
       title: "THE LITIGATION MANAGEMENT AGREEMENT",
       intro: "The main features of the LMA are:",
       features: [
-        "confirmation of the practical impact of the power of attorney;",
+        "confirmation of the practical impact of the Power of Attorney;",
         "a declaration of common purpose with the other medical professionals who join the action group;",
         "your agreement to cooperate with FIPO in the progression of the Claims, including by disclosing documents to FIPO so that it can comply with the formal requirements of the court's rules;",
         "your agreement as to how your information will be used;",
@@ -549,7 +549,7 @@ export const explanationsDocuments = {
         {
           title: "I understand the legal process",
           items: [
-            "I have read or been offered the opportunity to read all legal documents including in particular Harcus Parker's engagement documents, which FIPO is executing on my behalf, and have read the Important Legal Notice on the claim website",
+            "I have read or been offered the opportunity to read all legal documents including in particular Harcus Parker's engagement documents, which FIPO is executing on my behalf, and have read the Important Legal Notice on the Claim website",
             "I understand FIPO will bring and manage the litigation on behalf of all participants",
             "I understand major decisions (including settlement) are made by FIPO in the collective interest",
           ],
@@ -577,7 +577,7 @@ export const explanationsDocuments = {
           items: [
             "I am a registered medical practitioner (GMC number: [auto-fill])",
             "I have received income from private medical insurers",
-            "I am not employed by or acting for any of the defendant insurance companies",
+            "I am not employed by or acting for any of the defendant Insurance companies",
           ],
         },
         {
@@ -616,7 +616,7 @@ export const explanationsUpload = {
     },
     {
       title: "What If I Don't Have Much Documentation?",
-      body: "Don't worry — join the claim anyway. Harcus Parker will work with you to reconstruct your fee history, including by requesting information directly from the insurers on your behalf. The more members who join, the stronger the overall evidential picture.",
+      body: "Don't worry — join the Claim anyway. Harcus Parker will work with you to reconstruct your fee history, including by requesting information directly from the insurers on your behalf. The more members who join, the stronger the overall evidential picture.",
     },
   ],
 } as const;
@@ -624,7 +624,7 @@ export const explanationsUpload = {
 export const explanationsDocumentHold = {
   id: "document-hold",
   title: "Document Hold",
-  body: "DOCUMENT HOLD NOTICE: By joining the Action Group, you are required from the date of your membership to preserve all documents and data in your possession, custody or control that may be relevant to the claims. This includes emails, letters, fee schedules, payment records and any other communications with or about Bupa or AXA PPP. Do not delete, destroy or overwrite any such documents. This obligation applies even if the documents would otherwise be subject to routine deletion under your data retention policy.",
+  body: "DOCUMENT HOLD NOTICE: By joining the Action Group, you are required from the date of your membership to preserve all documents and data in your possession, custody or control that may be relevant to the Claims. This includes emails, letters, fee schedules, payment records and any other communications with or about Bupa or AXA PPP. Do not delete, destroy or overwrite any such documents. This obligation applies even if the documents would otherwise be subject to routine deletion under your data retention policy.",
 } as const;
 
 export const explanationsSummaryRisk = {
@@ -655,6 +655,6 @@ export const explanationsSummaryRisk = {
 } as const;
 
 export const explanationsCta = {
-  label: "Join the claim",
+  label: "Join the Claim",
   href: "/#join",
 } as const;

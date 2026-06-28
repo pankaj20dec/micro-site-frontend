@@ -16,13 +16,13 @@ export const faqIntro = {
 export const faqItems: ReadonlyArray<FaqItem> = [
   {
     id: "claim-overview",
-    question: "What is this claim about, in plain terms?",
+    question: "What is this Claim about, in plain terms?",
     answer:
       "In plain terms: Bupa and AXA PPP have, we allege, used their grip on the private medical market to keep your fees artificially low — not necessarily by colluding with each other, but because the sheer weight of their individual market power has produced the same result. You have been paid less than a fair market would have delivered, for years. Three distinct legal arguments  - from competition law and the common law doctrines of restraint of trade and interference with business by unlawful means - together give practitioners a strong, multi-layered basis to recover that loss.",
   },
   {
     id: "power-of-attorney",
-    question: "What will happen after I grant a power of attorney to FIPO?",
+    question: "What will happen after I grant a Power of Attorney to FIPO?",
     answer:
       "FIPO will take on full responsibility for the conduct of the litigation. This includes devising legal strategy, instructing Harcus Parker and counsel, managing day-to-day developments, and representing your interests in any negotiations or court proceedings. You will not need to attend court or deal with the defendants directly.",
   },
@@ -40,9 +40,9 @@ export const faqItems: ReadonlyArray<FaqItem> = [
   },
   {
     id: "legal-basis",
-    question: "What is the legal basis of the claim?",
+    question: "What is the legal basis of the Claim?",
     answer: [
-      "The claim rests on three legal foundations. First, competition law: we believe Bupa and AXA PPP have breached the Chapter I and Chapter II prohibitions of the Competition Act 1998, by (a) applying restrictive fee practices across a substantial part of the market and / coordinating their fee schedules with each other (contrary to Section 2) and (b) individually abusing their dominant market positions to impose unfairly low fees and restrictive practices on consultants (contrary to Section 18).", 
+      "The Claim rests on three legal foundations. First, competition law: we believe Bupa and AXA PPP have breached the Chapter I and Chapter II prohibitions of the Competition Act 1998, by (a) applying restrictive fee practices across a substantial part of the market and / coordinating their fee schedules with each other (contrary to Section 2) and (b) individually abusing their dominant market positions to impose unfairly low fees and restrictive practices on consultants (contrary to Section 18).", 
       "Second, the common law doctrine of restraint of trade: this longstanding legal principle prevents parties from using their economic power to distort a market in a way that causes unjustified harm to others. Third, potential additional common law economic torts, including interference with business by unlawful means. Together, these legal bases give practitioners a right to claim compensation for the income they have lost as a result of the insurers' conduct.",
     ]
   },
@@ -56,7 +56,7 @@ export const faqItems: ReadonlyArray<FaqItem> = [
     id: "risks",
     question: "What are the risks?",
     answer:
-      "The main legal risk is an adverse costs order if the claim fails. However, the structure is designed to protect you: (1) FIPO will not issue proceedings without ATE insurance in place to cover this risk; (2) FIPO itself bears primary responsibility for any adverse costs; (3) any third-party funder also bears responsibility; and (4) even in a worst-case scenario, your individual liability would be proportionate (i.e. a small fraction of the total). The more practitioners who join, the smaller the individual exposure.",
+      "The main legal risk is an adverse costs order if the Claim fails. However, the structure is designed to protect you: (1) FIPO will not issue proceedings without ATE insurance in place to cover this risk; (2) FIPO itself bears primary responsibility for any adverse costs; (3) any third-party funder also bears responsibility; and (4) even in a worst-case scenario, your individual liability would be proportionate (i.e. a small fraction of the total). The more practitioners who join, the smaller the individual exposure.",
   },
   {
     id: "soundings",
@@ -66,13 +66,13 @@ export const faqItems: ReadonlyArray<FaqItem> = [
   },
   {
     id: "own-solicitor",
-    question: "Do I need my own solicitor to sign the documents?",
+    question: "Do I need my own Solicitor to sign the documents?",
     answer:
-      "You are not required to instruct your own solicitor, but you are strongly encouraged to take independent legal advice before signing, particularly regarding the power of attorney and the tax implications. At minimum, make sure the documents are properly witnessed as described in the sign-up flow.",
+      "You are not required to instruct your own Solicitor, but you are strongly encouraged to take independent legal advice before signing, particularly regarding the Power of Attorney and the tax implications. At minimum, make sure the documents are properly witnessed as described in the sign-up flow.",
   },
   {
     id: "unsure-insurers",
-    question: "What if I am not sure which insurance companies I have worked with?",
+    question: "What if I am not sure which Insurance companies I have worked with?",
     answer:
       "Please list all private medical insurers you believe you have had agreements with, even if you are not certain. FIPO and Harcus Parker will verify your relationship with the insurers through the documentation you provide and, if necessary, by contacting the insurers directly on your behalf.",
   },
@@ -80,12 +80,12 @@ export const faqItems: ReadonlyArray<FaqItem> = [
     id: "separate-claim",
     question: "Can I also pursue a separate claim against the insurers myself?",
     answer:
-      "No. Once you have signed the power of attorney (which is irrevocable after the cooling-off period), you cannot pursue or settle the same claims independently. This is an essential feature of the collective action structure.",
+      "No. Once you have signed the Power of Attorney (which is irrevocable after the cooling-off period), you cannot pursue or settle the same claims independently. This is an essential feature of the collective action structure.",
   },
   {
     id: "additional-claims",
     question:
-      "What if I discover I have additional claims against other insurers not named in this action?",
+      "What if I discover I have additional claims against other Insurers not named in this action?",
     answer:
       "Contact FIPO as soon as possible. Claims against smaller insurers with few affected practitioners may be more difficult to pursue economically, but FIPO will consider each situation individually.",
   },
@@ -93,13 +93,13 @@ export const faqItems: ReadonlyArray<FaqItem> = [
     id: "fipo-insolvent",
     question: "What happens if FIPO becomes insolvent?",
     answer:
-      "This is considered very unlikely. However, if it did occur, your subscription and any damages held on your behalf would be protected — they are ring-fenced and cannot be claimed by [Organisation]'s creditors. The practical conduct of the claim would be affected, and Harcus Parker and/or members would need to make alternative arrangements to continue the litigation.",
+      "This is considered very unlikely. However, if it did occur, your subscription and any damages held on your behalf would be protected — they are ring-fenced and cannot be claimed by [Organisation]'s creditors. The practical conduct of the Claim would be affected, and Harcus Parker and/or members would need to make alternative arrangements to continue the litigation.",
   },
   {
     id: "death",
     question: "What happens if I die before the litigation concludes?",
     answer:
-      "Your estate would be entitled to receive your Proportionate Share of any damages. However, death automatically revokes a power of attorney, which means your personal representatives will need to execute a new power of attorney to continue the claim on behalf of your estate.",
+      "Your estate would be entitled to receive your Proportionate Share of any damages. However, death automatically revokes a Power of Attorney, which means your personal representatives will need to execute a new Power of Attorney to continue the Claim on behalf of your estate.",
   },
   {
     id: "timing",
@@ -109,7 +109,7 @@ export const faqItems: ReadonlyArray<FaqItem> = [
   },
   {
     id: "legal-team",
-    question: "Who is in the legal team?",
+    question: "Who is in the Legal team?",
     answer: [
       "The main members are:",
       "Professor Suzanne Rab - a barrister in private practice at Matrix Chambers, who is well known to the medical profession and who has worked on these issues for many years. She represented FIPO in proceedings before the Competition Commission/Competition and Markets Authority, Competition Appeal Tribunal and Court of Appeal in its challenge to the Private Healthcare Market Investigation. She is involved in multiple collective actions involving competition law claims.",
@@ -142,10 +142,10 @@ export const faqItems: ReadonlyArray<FaqItem> = [
   },
   {
     id: "confidentiality",
-    question: "Will my involvement in the claim be kept confidential?",
+    question: "Will my involvement in the Claim be kept confidential?",
     answer:[
       "Before proceedings are issued - including throughout the pre-action and Letter Before Claim stage - your identity will be kept strictly confidential. The defendants will not know who has joined but it may be necessary to issue periodic updates on aggregate numbers of sign-ups.",
-      "If and once proceedings are issued, the position changes. Court rules require that the individuals on whose behalf a claim is brought are identifiable. Your details will be included in a confidential schedule to the proceedings with unique identifiers matched to your identification details rather than in any public document. FIPO and Harcus Parker will seek all available confidentiality protections from the court to ensure that specific details are only disclosed at the appropriate stage in the proceedings where strictly necessary. But in order to support the claim, validate your loss and pay out any compensation due to you: the basic details needed to identify that you have a claim will need to be disclosed to the court.",
+      "If and once proceedings are issued, the position changes. Court rules require that the individuals on whose behalf a claim is brought are identifiable. Your details will be included in a confidential schedule to the proceedings with unique identifiers matched to your identification details rather than in any public document. FIPO and Harcus Parker will seek all available confidentiality protections from the court to ensure that specific details are only disclosed at the appropriate stage in the proceedings where strictly necessary. But in order to support the Claim, validate your loss and pay out any compensation due to you: the basic details needed to identify that you have a claim will need to be disclosed to the court.",
       "This should not deter you, for two reasons. First, the insurers already hold your details on their own systems — you are not revealing anything they do not already know. Second, by the time proceedings are issued, if necessary, there will be strength in numbers. A large group of practitioners, collectively represented, is far harder to pressure than any individual acting alone. That collective protection is one of the principal reasons the Action Group structure exists.",
       "If you have specific concerns, contact office@fipo.uk or fipo@harcusparker.co.uk before signing."
     ]
@@ -157,7 +157,7 @@ export const faqContact = {
   legal: {
     title: "Legal Enquiries",
     description:
-      "For legal enquiries relating to the claim, please contact Harcus Parker:",
+      "For legal enquiries relating to the Claim, please contact Harcus Parker:",
     email: "fipo@harcusparker.co.uk",
   },
   admin: {

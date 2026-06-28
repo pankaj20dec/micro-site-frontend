@@ -8,7 +8,7 @@ const STORAGE_KEY = "fipo-disclaimer-accepted";
 const paragraphs = [
   "This website provides information about collective legal action against private medical insurers. It is intended only for medical practitioners who may be eligible to participate.",
   "By proceeding, you confirm that you are a registered medical practitioner who has provided services under private medical insurance arrangements.",
-  "The information on this site is provided for potential claimants only. If you are employed by or represent either of the defendant insurance companies BUPA Insurance Limited or AXA PPP, you should not proceed beyond this page.",
+  "The information on this site is provided for potential claimants only. If you are employed by or represent either of the defendant Insurance companies BUPA Insurance Limited or AXA PPP, you should not proceed beyond this page.",
   "Detailed legal documents and case materials available to registered members are legally privileged and confidential to the litigation.",
 ];
 

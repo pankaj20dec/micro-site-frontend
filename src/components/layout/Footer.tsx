@@ -116,10 +116,17 @@ function FooterBrandCard() {
           </a>
         </div>
       </div>
-      <div className="flex max-w-full flex-col mb-4">
-          <p className="text-[100px] md:text-[120px] font-bold uppercase tracking-wide text-[#660066] leading-none">FIPO</p>
-        <p className="text-[#8F8F8F] font-bold text-center mb-5">Federation of Independent Practitioner Organisations</p>
-        <Link href="https://harcusparker.co.uk" target="_blank" rel="noopener noreferrer">
+      <div className="flex max-w-full flex-col items-center mb-4">
+        <Link href="/" className="mx-auto mt-4">
+          <Image
+            src="/images/bottom-logo.png"
+            alt="FIPO – Federation of Independent Practitioner Organisations"
+            width={315}
+            height={80}
+            className="h-auto object-contain"
+          />
+        </Link>
+        <Link href="https://harcusparker.co.uk" target="_blank" rel="noopener noreferrer" className="mt-5">
           <Image
             src="/images/footer-logo.png"
             alt="Harcus Parker"
@@ -187,7 +194,7 @@ export function Footer() {
                 </address>
               </li>
             </ul>
-            <div className="mt-5 flex items-center gap-5">
+            {/* <div className="mt-5 flex items-center gap-5">
               <SocialIcon href="https://www.facebook.com/" label="Facebook">
                 <IconFacebook className="h-4 w-4 sm:h-4 sm:w-4" />
               </SocialIcon>
@@ -197,7 +204,7 @@ export function Footer() {
               <SocialIcon href="https://www.linkedin.com/" label="LinkedIn">
                 <IconLinkedIn className="h-4 w-4 sm:h-4 sm:w-4" />
               </SocialIcon>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -207,7 +214,7 @@ export function Footer() {
             England number 4148752.
           </p>
           <p className="mt-1.5">
-          Registered office: 2 St Marys Road, Tonbridge, Kent TN9 2LB
+          Registered office: The Harley Building, 77-79 New Cavendish Street, London, W1W 6XB.
           </p>
         </div>
       </Container>

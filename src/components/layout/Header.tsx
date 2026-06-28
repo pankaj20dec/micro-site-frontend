@@ -20,7 +20,7 @@ export function Header() {
             size="md"
             className="shrink-0 rounded-full px-7 py-2.5 text-[11px] sm:text-xs"
           >
-            Join the claim
+            Join the Claim
           </ButtonLink>
         </div>
 

@@ -58,7 +58,7 @@ export function FightingSection() {
               financial harm to thousands of practitioners across the country and restricted patient choice of specialist.
             </p>
             <p>
-              The FIPO Fair Pay Action Group exists to put that right. By pooling the claims of affected practitioners into
+              The FIPO Fair Pay Action Group exists to put that right. By pooling the Claims of affected practitioners into
               a single, coordinated legal action, we can achieve together what no individual could achieve alone: fair
               compensation for lost earnings, and lasting change in the way insurers treat the medical profession and
               restoring the ability for medical practitioners to serve patients based on their individual skill and

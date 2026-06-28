@@ -29,7 +29,7 @@ const joinSteps = [
   {
     Icon: IconSealCheck,
     title: "Sign Documents",
-    text: "Execute the power of attorney and litigation management agreement online. It takes about 15 minutes.",
+    text: "Execute the Power of Attorney and litigation management agreement online. It takes about 15 minutes.",
   },
   {
     Icon: IconDocumentsStack,
@@ -39,7 +39,7 @@ const joinSteps = [
   {
     Icon: IconHandCard,
     title: "We Take It From Here",
-    text: "FIPO and our legal team conduct the claim on your behalf. You will be kept informed throughout.",
+    text: "FIPO and our Legal Team conduct the Claim on your behalf. You will be kept informed throughout.",
   },
 ] as const;
 

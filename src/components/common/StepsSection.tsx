@@ -22,7 +22,7 @@ const steps = [
   {
     Icon: IconSealCheck,
     title: "Sign Documents",
-    text: "Execute the power of attorney and litigation management agreement online. It takes about 15 minutes.",
+    text: "Execute the Power of Attorney and litigation management agreement online. It takes about 15 minutes.",
   },
   {
     Icon: IconDocumentsStack,
@@ -32,7 +32,7 @@ const steps = [
   {
     Icon: IconHandCard,
     title: "We Take It From Here",
-    text: "FIPO and our legal team conduct the claim on your behalf. You will be kept informed throughout.",
+    text: "FIPO and our Legal Team conduct the Claim on your behalf. You will be kept informed throughout.",
   },
 ] as const;
 
@@ -80,7 +80,7 @@ export function StepsSection() {
 
         <div className="mt-10 flex justify-center sm:mt-12">
           <ButtonLink href="#fees" variant="primary" size="lg" className="rounded-full px-10 sm:px-14">
-            Join the claim
+            Join the Claim
           </ButtonLink>
         </div>
       </Container>
