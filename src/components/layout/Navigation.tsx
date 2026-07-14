@@ -5,33 +5,14 @@ import { usePathname } from "next/navigation";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 import { mainNavLinks } from "./nav-links";
+import { useSiteLayout } from "./SiteLayoutProvider";
 
 export { mainNavLinks };
 
-function isNavActive(
-  link: (typeof mainNavLinks)[number],
-  pathname: string | null
-): boolean {
+function isNavActive(href: string, pathname: string | null): boolean {
   if (!pathname) return false;
-  if (link.id === "news") {
-    return pathname === "/news" || pathname.startsWith("/news/");
-  }
-  if (link.id === "about") {
-    return pathname === "/about" || pathname.startsWith("/about/");
-  }
-  if (link.id === "faq") {
-    return pathname === "/faq" || pathname.startsWith("/faq/");
-  }
-  if (link.id === "contact") {
-    return pathname === "/contact" || pathname.startsWith("/contact/");
-  }
-  if (link.id === "explanations") {
-    return pathname === "/explanations" || pathname.startsWith("/explanations/");
-  }
-  if (link.id === "claim") {
-    return pathname === "/";
-  }
-  return false;
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 type NavigationProps = {
@@ -41,6 +22,8 @@ type NavigationProps = {
 
 export function Navigation({ className, compact }: NavigationProps) {
   const pathname = usePathname();
+  const { siteHeader } = useSiteLayout();
+  const links = siteHeader.navLinks;
 
   return (
     <ul
@@ -50,10 +33,10 @@ export function Navigation({ className, compact }: NavigationProps) {
         className
       )}
     >
-      {mainNavLinks.map((link) => {
-        const active = isNavActive(link, pathname);
+      {links.map((link) => {
+        const active = isNavActive(link.href, pathname);
         return (
-          <li key={link.href} className="shrink-0">
+          <li key={`${link.href}-${link.label}`} className="shrink-0">
             <Link
               href={link.href}
               className={cn(

@@ -16,7 +16,7 @@ export function NewsListingPage({ pages }: { pages: PageSummary[] }) {
             ) : (
               <div className="flex flex-col gap-0">
                 {pages.map((page) => (
-                  <NewsCard key={page._id} page={page} />
+                  <NewsCard key={page.id} page={page} />
                 ))}
               </div>
             )}

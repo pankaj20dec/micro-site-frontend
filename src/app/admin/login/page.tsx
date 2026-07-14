@@ -1,13 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useState, Suspense } from "react";
 import Link from "next/link";
 import { getApiBase } from "@/lib/api";
-import { setAdminToken } from "@/lib/admin-auth";
+import { setAdminToken, getAdmin, clearAdminToken } from "@/lib/admin-auth";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/admin";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +36,13 @@ export default function AdminLoginPage() {
         return;
       }
       setAdminToken(data.token);
-      router.replace("/admin");
+      const admin = getAdmin();
+      if (admin?.role !== "ADMIN" && admin?.role !== "SUPER_ADMIN") {
+        clearAdminToken();
+        setError("This account does not have admin access.");
+        return;
+      }
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError("Network error — is the API running?");
@@ -46,8 +55,7 @@ export default function AdminLoginPage() {
     <div className="mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Admin sign in</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Uses Express{" "}
-        <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">POST /api/auth/login</code>
+        Sign in to manage pages, users, and registrations.
       </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div>
@@ -89,16 +97,31 @@ export default function AdminLoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+          className="w-full rounded-lg bg-[#660066] py-2.5 text-sm font-medium text-white transition hover:bg-[#550055] disabled:opacity-60"
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
       <p className="mt-6 text-center text-sm text-zinc-500">
-        <Link href="/" className="hover:underline">
-          ← Back to site
+        Don&apos;t have an admin account?{" "}
+        <Link href="/admin/register" className="font-semibold text-[#660066] hover:underline">
+          Register
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="text-center text-sm text-zinc-500">Loading…</p>
+        </div>
+      }
+    >
+      <AdminLoginForm />
+    </Suspense>
   );
 }

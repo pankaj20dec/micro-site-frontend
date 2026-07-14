@@ -1,11 +1,9 @@
-import type { Metadata } from "next";
 import { AboutPage } from "@/components/common/AboutPage";
+import { getPageMetadata } from "@/lib/get-page-metadata";
 
-export const metadata: Metadata = {
-  title: "About FIPO | FIPO Fair Pay Action Group",
-  description:
-    "Who FIPO is, why the Fair Pay Action Group exists, and why independent medical practitioners can trust our advocacy.",
-};
+export async function generateMetadata() {
+  return getPageMetadata("about");
+}
 
 export default function AboutRoute() {
   return <AboutPage />;

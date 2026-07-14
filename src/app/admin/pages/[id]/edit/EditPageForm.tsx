@@ -36,7 +36,7 @@ export function EditPageForm({ id }: Props) {
           return;
         }
         const data = await res.json();
-        const page = (data.pages as PageDoc[] | undefined)?.find((p) => p._id === id);
+        const page = (data.pages as PageDoc[] | undefined)?.find((p) => p.id === id);
         if (!page) {
           if (!cancelled) setError("Page not found");
           return;
@@ -81,7 +81,7 @@ export function EditPageForm({ id }: Props) {
         setError(typeof data.error === "string" ? data.error : "Save failed");
         return;
       }
-      router.replace("/admin");
+      router.replace("/admin/pages");
     } catch {
       setError("Network error");
     } finally {
@@ -106,7 +106,7 @@ export function EditPageForm({ id }: Props) {
         setError(typeof data.error === "string" ? data.error : "Delete failed");
         return;
       }
-      router.replace("/admin");
+      router.replace("/admin/pages");
     } catch {
       setError("Network error");
     }
@@ -118,8 +118,8 @@ export function EditPageForm({ id }: Props) {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href="/admin" className="text-sm text-teal-700 hover:underline dark:text-teal-400">
-        ← Dashboard
+      <Link href="/admin/pages" className="text-sm text-[#660066] hover:underline">
+        ← Back to pages
       </Link>
       <h1 className="mt-4 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Edit page</h1>
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900/50">

@@ -1,25 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { brand } from "@/lib/brand";
+import { fetchSiteDisclaimerContent } from "@/lib/modal-content-api";
+import {
+  defaultSiteDisclaimer,
+  type SiteDisclaimerContent,
+} from "@/lib/modal-content-defaults";
+import { useMounted } from "@/hooks/use-mounted";
 
 const STORAGE_KEY = "fipo-disclaimer-accepted";
 
-const paragraphs = [
-  "This website provides information about collective legal action against private medical insurers. It is intended only for medical practitioners who may be eligible to participate.",
-  "By proceeding, you confirm that you are a registered medical practitioner who has provided services under private medical insurance arrangements.",
-  "The information on this site is provided for potential claimants only. If you are employed by or represent either of the defendant Insurance companies BUPA Insurance Limited or AXA PPP, you should not proceed beyond this page.",
-  "Detailed legal documents and case materials available to registered members are legally privileged and confidential to the litigation.",
-];
+function isRegisterPath(pathname: string | null) {
+  if (!pathname) return false;
+  return pathname === "/register" || pathname.startsWith("/register/");
+}
+
+function isAdminPath(pathname: string | null) {
+  if (!pathname) return false;
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
 
 export function DisclaimerModal() {
+  const pathname = usePathname();
+  const mounted = useMounted();
   const [open, setOpen] = useState(false);
+  const [content, setContent] = useState<SiteDisclaimerContent>(defaultSiteDisclaimer);
 
   useEffect(() => {
+    let cancelled = false;
+    fetchSiteDisclaimerContent().then((data) => {
+      if (!cancelled) setContent(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (isRegisterPath(pathname) || isAdminPath(pathname)) {
+      setOpen(false);
+      document.body.style.removeProperty("overflow");
+      document.documentElement.style.removeProperty("overflow");
+      return;
+    }
     if (sessionStorage.getItem(STORAGE_KEY) !== "true") {
       setOpen(true);
     }
-  }, []);
+  }, [mounted, pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -36,10 +67,10 @@ export function DisclaimerModal() {
   }
 
   function handleExit() {
-    window.location.href = "https://www.google.com";
+    window.location.href = content.exitUrl || defaultSiteDisclaimer.exitUrl;
   }
 
-  if (!open) return null;
+  if (!mounted || !open || isRegisterPath(pathname)) return null;
 
   return (
     <div
@@ -56,11 +87,11 @@ export function DisclaimerModal() {
           className="font-top-heading text-xl font-bold leading-snug sm:text-2xl"
           style={{ color: brand.headingText }}
         >
-          Welcome To The FIPO Fair Pay Action Group Case Site
+          {content.title}
         </h2>
 
         <div className="mt-6 space-y-4 text-sm leading-relaxed text-[#263238]">
-          {paragraphs.map((text) => (
+          {content.paragraphs.map((text) => (
             <p key={text}>{text}</p>
           ))}
         </div>
@@ -72,7 +103,7 @@ export function DisclaimerModal() {
             className="inline-flex w-full items-center justify-center rounded-full border-2 px-8 py-3 text-xs font-bold uppercase tracking-widest transition hover:bg-violet-50/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
             style={{ borderColor: brand.divider, color: brand.text }}
           >
-            Exit
+            {content.exitButtonLabel}
           </button>
           <button
             type="button"
@@ -80,7 +111,7 @@ export function DisclaimerModal() {
             className="inline-flex w-full items-center justify-center rounded-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
             style={{ backgroundColor: brand.purple }}
           >
-            I Confirm &amp; Proceed
+            {content.confirmButtonLabel}
           </button>
         </div>
       </div>

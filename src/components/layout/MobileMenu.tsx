@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui";
-import { mainNavLinks } from "./nav-links";
+import { useSiteLayout } from "./SiteLayoutProvider";
 
 export function MobileMenu() {
+  const { siteHeader } = useSiteLayout();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -79,12 +80,12 @@ export function MobileMenu() {
       >
         <nav aria-label="Mobile navigation" className="px-4 py-5 sm:px-6">
           <ul className="flex flex-col divide-y divide-neutral-100">
-            {mainNavLinks.map((link) => {
+            {siteHeader.navLinks.map((link) => {
               const active =
                 pathname === link.href ||
                 (link.href !== "/" && pathname?.startsWith(link.href));
               return (
-                <li key={link.href}>
+                <li key={`${link.href}-${link.label}`}>
                   <Link
                     href={link.href}
                     onClick={() => setOpen(false)}
@@ -103,12 +104,12 @@ export function MobileMenu() {
 
           <div className="mt-5 pb-1">
             <ButtonLink
-              href="/#join"
+              href={siteHeader.ctaHref}
               variant="primary"
               size="md"
               className="w-full rounded-full py-3 text-[11px]"
             >
-              Join the Claim
+              {siteHeader.ctaLabel}
             </ButtonLink>
           </div>
         </nav>

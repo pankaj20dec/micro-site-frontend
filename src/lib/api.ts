@@ -6,11 +6,11 @@ export function getApiBase(): string {
   if (typeof window !== "undefined") {
     return "";
   }
-  return (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:5000").replace(/\/$/, "");
 }
 
 export type PageSummary = {
-  _id: string;
+  id: string;
   slug: string;
   title: string;
   updatedAt?: string;

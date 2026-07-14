@@ -6,7 +6,7 @@ import type { PageDoc } from "./api";
  */
 export const staticNewsArticles: PageDoc[] = [
   {
-    _id: "static-1",
+    id: "static-1",
     slug: "phin-agm-promises-clearer-information-for-private-healthcare",
     title: "PHIN AGM promises clearer information for private healthcare",
     excerpt:
@@ -25,7 +25,7 @@ The Transparency Programme is a key initiative aimed at enabling patients to mak
 FIPO continues to engage with PHIN and the CMA to ensure that transparency measures genuinely serve patients and practitioners alike.`,
   },
   {
-    _id: "static-2",
+    id: "static-2",
     slug: "fipo-briefs-boa-annual-congress",
     title: "FIPO briefs BOA annual congress",
     excerpt:
@@ -44,7 +44,7 @@ FIPO's engagement with the BOA reflects the breadth of medical specialties affec
 The BOA represents over 4,000 orthopaedic surgeons and trainees across the UK, making this a significant opportunity to build awareness of the ongoing competition law action.`,
   },
   {
-    _id: "static-3",
+    id: "static-3",
     slug: "fipo-challenges-market-distortions-in-private-healthcare",
     title: "FIPO challenges market distortions in private healthcare",
     excerpt:
@@ -63,7 +63,7 @@ FIPO presented evidence to the CMA demonstrating that market distortions have wo
 FIPO is calling on the CMA to review the effectiveness of the existing Market Investigation Order and to consider whether further regulatory action is required to restore competition in the sector.`,
   },
   {
-    _id: "static-4",
+    id: "static-4",
     slug: "fipo-position-statement-november-2023",
     title: "FIPO position statement November 2023",
     excerpt:

@@ -1,0 +1,3767 @@
+"use client";
+
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { getApiBase } from "@/lib/api";
+import { getUserToken, setUserToken, clearUserToken, getUser } from "@/lib/user-auth";
+import {
+  saveStep,
+  requestSaveResume,
+  saveEvidenceFile,
+  capturePaypalOrder,
+} from "@/lib/application-api";
+import MembershipPaymentSection, {
+  type PaymentSectionHandle,
+} from "./sections/MembershipPaymentSection";
+import { SaveResumeModal } from "@/components/common/SaveResumeModal";
+import {
+  explanationsDocuments,
+  explanationsSummaryRisk,
+} from "@/lib/explanations-content";
+
+type SectionId = "supporter" | "payment" | "confirmation" | "identity";
+
+const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: "supporter", label: "Supporter Registration" },
+  { id: "payment", label: "Membership & Payment" },
+  { id: "confirmation", label: "Confirmation & Next Steps" },
+  { id: "identity", label: "Identity Verification" },
+];
+
+type ClaimantSectionId = "overview" | "stage1" | "stage2";
+
+const CLAIMANT_SECTIONS: { id: ClaimantSectionId; label: string }[] = [
+  { id: "overview", label: "Become a Claimant Member" },
+  {
+    id: "stage1",
+    label:
+      "Stage 1: approval of the terms of FIPO\u2019s engagement with Harcus Parker and Counsel",
+  },
+  {
+    id: "stage2",
+    label:
+      "Stage 2: execution of a power of attorney [DP26.1]in FIPO\u2019s favour authorising FIPO to bring proceedings against the PMIs on your behalf and agreement to the Litigation Management Agreement.",
+  },
+];
+
+const CLAIMANT_STAGE_SECTIONS = CLAIMANT_SECTIONS.filter((s) => s.id !== "overview");
+
+const TABS = [
+  "Become A Supporter",
+  "Legal Documents",
+  "Become A Claimant",
+  "Final Confirmation",
+];
+
+type LegalSectionId = "overview" | "practice" | "pmi" | "evidence";
+
+const LEGAL_SECTIONS: { id: LegalSectionId; label: string }[] = [
+  {
+    id: "overview",
+    label: "STEP 2: become a Claimant Member of the FIPO Fair Pay Action Group",
+  },
+  { id: "practice", label: "Practice information" },
+  { id: "pmi", label: "Private medical insurers relationship details" },
+  { id: "evidence", label: "Evidence upload" },
+];
+
+const TITLES = ["Dr", "Prof", "Mr", "Mrs", "Ms", "Miss", "Mx"];
+
+const PURPLE = "#802B7D";
+const CLAIMANT_ACTIVE = "#660066";
+const CLAIMANT_HEADING = "#223645";
+const CLAIMANT_PANEL_BG = "#FBF7FE";
+const CLAIMANT_PANEL_BORDER = "#F4ECFB";
+const CLAIMANT_STAGE2_BTN_BG = "#F3EAF3";
+const CLAIMANT_INPUT_BORDER = "#b2bfcf";
+
+function membershipLabel(type: string) {
+  return type === "ORGANISATION" ? "£500 membership" : "£250 membership";
+}
+
+interface Props {
+  application: Record<string, unknown> | null;
+}
+
+// Rebuild the wizard's position (which tab/section is open and what's done)
+// from the saved application's currentStep, so a resumed session lands where
+// the user left off instead of at the very beginning.
+function resumePosition(step: number) {
+  const doneSections = new Set<SectionId>();
+  let open: SectionId = "supporter";
+  let activeTab = 0;
+  const completedTabs = new Set<number>();
+  let legalOpen: LegalSectionId = "overview";
+  const legalDoneSections = new Set<LegalSectionId>();
+  let claimantOpen: ClaimantSectionId = "overview";
+  const claimantDoneSections = new Set<ClaimantSectionId>();
+
+  if (step >= 2) { doneSections.add("supporter"); open = "payment"; }
+  if (step >= 3) { doneSections.add("payment"); open = "confirmation"; }
+  if (step >= 4) { doneSections.add("confirmation"); open = "identity"; }
+  if (step >= 5) { doneSections.add("identity"); activeTab = 1; completedTabs.add(0); }
+  if (step >= 6) {
+    activeTab = 2;
+    completedTabs.add(0);
+    completedTabs.add(1);
+    legalDoneSections.add("overview");
+    legalDoneSections.add("practice");
+    legalDoneSections.add("pmi");
+    legalDoneSections.add("evidence");
+    legalOpen = "evidence";
+  }
+  if (step >= 7) {
+    activeTab = 3;
+    completedTabs.add(2);
+    claimantDoneSections.add("overview");
+    claimantDoneSections.add("stage1");
+    claimantDoneSections.add("stage2");
+    claimantOpen = "stage2";
+  }
+  if (step >= 8) { completedTabs.add(3); }
+
+  return {
+    doneSections,
+    open,
+    activeTab,
+    completedTabs,
+    legalOpen,
+    legalDoneSections,
+    claimantOpen,
+    claimantDoneSections,
+  };
+}
+
+export default function AccordionRegistration({ application }: Props) {
+  const router = useRouter();
+
+  // ── Prefill from a previously saved (resumed) application ──
+  const savedStage1 = (application?.stage1Data ?? {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const savedStep =
+    typeof application?.currentStep === "number" ? application.currentStep : 1;
+  const initial = resumePosition(savedStep);
+
+  const [open, setOpen] = useState<SectionId>(initial.open);
+  const [done, setDone] = useState<Set<SectionId>>(initial.doneSections);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  // ── Supporter Registration fields ──
+  const [title, setTitle] = useState(str(savedStage1.title));
+  const [forename, setForename] = useState(str(savedStage1.forename));
+  const [surname, setSurname] = useState(str(savedStage1.surname));
+  const [email, setEmail] = useState(str(savedStage1.email));
+  const [gmcNumber, setGmcNumber] = useState(str(savedStage1.gmcNumber));
+  const [address, setAddress] = useState(str(savedStage1.address));
+  const [dob, setDob] = useState(str(savedStage1.dob));
+  const [phone, setPhone] = useState(str(savedStage1.phone));
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirm1, setConfirm1] = useState(!!savedStage1.confirmedPractitioner);
+  const [confirm2, setConfirm2] = useState(!!savedStage1.confirmedIndependentDecision);
+
+  // ── Payment fields ──
+  const [membershipType, setMembershipType] = useState(
+    str(application?.membershipType) || "INDIVIDUAL"
+  );
+  const savedProvider = str(application?.paymentProvider);
+  const [payMethod, setPayMethod] = useState<"stripe" | "paypal" | null>(
+    savedProvider === "STRIPE"
+      ? "stripe"
+      : savedProvider === "PAYPAL"
+        ? "paypal"
+        : null
+  );
+  const [paymentPaid, setPaymentPaid] = useState(
+    application?.paymentStatus === "PAID"
+  );
+  const paymentRef = useRef<PaymentSectionHandle>(null);
+  const handlePaymentPaid = useCallback(() => setPaymentPaid(true), []);
+
+  // ── Identity ──
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [identityConsent, setIdentityConsent] = useState(false);
+  const [legalOpen, setLegalOpen] = useState<LegalSectionId>(initial.legalOpen);
+  const [legalDone, setLegalDone] = useState<Set<LegalSectionId>>(initial.legalDoneSections);
+  const [claimantOpen, setClaimantOpen] = useState<ClaimantSectionId>(initial.claimantOpen);
+  const [claimantDone, setClaimantDone] = useState<Set<ClaimantSectionId>>(
+    initial.claimantDoneSections
+  );
+  const [claimantIntroOpen, setClaimantIntroOpen] = useState(
+    initial.claimantOpen === "overview"
+  );
+  const [finalConfirmedGroups, setFinalConfirmedGroups] = useState<
+    Record<string, boolean>
+  >(() =>
+    Object.fromEntries(
+      explanationsDocuments.readMore.overarchingDeclaration.groups.map(
+        (group) => [group.title, true]
+      )
+    )
+  );
+  const [finalSubmitted, setFinalSubmitted] = useState(false);
+
+  // ── Legal tab: practice & PMI fields ──
+  const [practiceFullName, setPracticeFullName] = useState(
+    str(savedStage1.fullName) || [forename, surname].filter(Boolean).join(" ").trim()
+  );
+  const [practiceEmail, setPracticeEmail] = useState(
+    str(savedStage1.practiceEmail) || email
+  );
+  const [practicePhone, setPracticePhone] = useState(
+    str(savedStage1.practicePhone) || phone
+  );
+  const [practiceSpecialty, setPracticeSpecialty] = useState(str(savedStage1.specialty));
+  const [practiceDeanery, setPracticeDeanery] = useState(str(savedStage1.deanery));
+  const [practiceIncome, setPracticeIncome] = useState(str(savedStage1.annualIncome));
+  const [practiceYearStarted, setPracticeYearStarted] = useState(
+    str(savedStage1.yearStartedPrivatePractice)
+  );
+  const [practiceYearEnded, setPracticeYearEnded] = useState(
+    str(savedStage1.yearEndedPrivatePractice)
+  );
+  const [practiceBupaNumber, setPracticeBupaNumber] = useState(str(savedStage1.bupaNumber));
+  const [practiceAxaNumber, setPracticeAxaNumber] = useState(str(savedStage1.axaNumber));
+  const [practiceRecognisedOther, setPracticeRecognisedOther] = useState<boolean | null>(
+    savedStage1.recognisedByOtherInsurers === true
+      ? true
+      : savedStage1.recognisedByOtherInsurers === false
+        ? false
+        : null
+  );
+  const [practicePmiPct, setPracticePmiPct] = useState(
+    str(savedStage1.pmiPercentage) || "50"
+  );
+
+  const pmiSaved = (application?.pmi as Record<string, unknown>) ?? {};
+  const [pmiIncomeSource, setPmiIncomeSource] = useState(str(pmiSaved.incomeSource));
+  const [pmiPaidAxa, setPmiPaidAxa] = useState(!!pmiSaved.paidDirectlyAxa);
+  const [pmiAxaYears, setPmiAxaYears] = useState(str(pmiSaved.axaYears));
+  const [pmiPaidBupa, setPmiPaidBupa] = useState(!!pmiSaved.paidDirectlyBupa);
+  const [pmiBupaYears, setPmiBupaYears] = useState(str(pmiSaved.bupaYears));
+  const [pmiPaidCompany, setPmiPaidCompany] = useState(!!pmiSaved.paidThroughCompany);
+  const [pmiCompanyName, setPmiCompanyName] = useState(str(pmiSaved.companyName));
+  const [pmiCompanyNumber, setPmiCompanyNumber] = useState(str(pmiSaved.companyNumber));
+  const [pmiCompanyDirectors, setPmiCompanyDirectors] = useState(str(pmiSaved.companyDirectors));
+  const [pmiPaidLlp, setPmiPaidLlp] = useState(!!pmiSaved.paidThroughLlp);
+  const [pmiLlpName, setPmiLlpName] = useState(str(pmiSaved.llpName));
+  const [pmiLlpNumber, setPmiLlpNumber] = useState(str(pmiSaved.llpRegistrationNumber));
+  const [pmiLlpMembers, setPmiLlpMembers] = useState(str(pmiSaved.llpMembers));
+  const [pmiPaidAlternative, setPmiPaidAlternative] = useState(!!pmiSaved.paidThroughAlternative);
+  const [pmiUploadingA, setPmiUploadingA] = useState(false);
+  const [pmiUploadingB, setPmiUploadingB] = useState(false);
+  const pmiUploading = pmiUploadingA || pmiUploadingB;
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
+  const [evidenceDisclosureAgreed, setEvidenceDisclosureAgreed] = useState(false);
+
+  // ── Claimant phase ──
+
+  // ── Top-level journey tabs ──
+  const [activeTab, setActiveTab] = useState(initial.activeTab);
+  const [completedTabs, setCompletedTabs] = useState<Set<number>>(
+    initial.completedTabs
+  );
+
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveModalSaving, setSaveModalSaving] = useState(false);
+  const saveResumePromptShown = useRef(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(!!getUserToken());
+    const user = getUser();
+    if (user?.email && !str(savedStage1.email)) {
+      setEmail(user.email);
+    }
+  }, []);
+
+  const alreadyRegistered = done.has("supporter") || isLoggedIn;
+
+  // Figma: Save And Resume popup after selecting a payment method
+  useEffect(() => {
+    if (
+      activeTab !== 0 ||
+      open !== "payment" ||
+      !payMethod ||
+      paymentPaid ||
+      !getUserToken() ||
+      saveResumePromptShown.current
+    ) {
+      return;
+    }
+    saveResumePromptShown.current = true;
+    setSaveModalOpen(true);
+  }, [activeTab, open, payMethod, paymentPaid]);
+
+  // Complete PayPal redirect checkout when user returns from sandbox.paypal.com
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("paypalCancel") === "1") {
+      sessionStorage.removeItem("paypal_checkout_pending");
+      setError("PayPal payment was cancelled.");
+      setOpen("payment");
+      router.replace("/register?form=1", { scroll: false });
+      return;
+    }
+
+    if (params.get("paypalReturn") !== "1") return;
+    const token = params.get("token");
+    if (!token) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setOpen("payment");
+    setPayMethod("paypal");
+
+    const fee = membershipType === "ORGANISATION" ? 500 : 250;
+
+    capturePaypalOrder(token)
+      .then(async () => {
+        if (cancelled) return;
+        setPaymentPaid(true);
+        sessionStorage.removeItem("paypal_checkout_pending");
+        await saveStep({ membershipType, membershipFee: fee, currentStep: 3 });
+        if (cancelled) return;
+        setDone((prev) => new Set(prev).add("payment"));
+        setOpen("confirmation");
+        router.replace("/register?form=1", { scroll: false });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "PayPal payment could not be completed. Use a US sandbox Personal account if paying in USD."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [membershipType, router]);
+
+  function goToTab(index: number, markCurrentDone = true) {
+    if (markCurrentDone) {
+      setCompletedTabs((prev) => new Set(prev).add(activeTab));
+    }
+    setError(null);
+    setActiveTab(index);
+    if (index === 1) setLegalOpen("overview");
+    if (index === 2) {
+      setClaimantOpen("overview");
+      setClaimantIntroOpen(true);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function markLegalDoneAndOpenNext(current: LegalSectionId) {
+    setLegalDone((prev) => new Set(prev).add(current));
+    const idx = LEGAL_SECTIONS.findIndex((s) => s.id === current);
+    const next = LEGAL_SECTIONS[idx + 1];
+    if (next) setLegalOpen(next.id);
+  }
+
+  function markClaimantDoneAndOpenNext(current: ClaimantSectionId) {
+    setClaimantDone((prev) => new Set(prev).add(current));
+    const idx = CLAIMANT_SECTIONS.findIndex((s) => s.id === current);
+    const next = CLAIMANT_SECTIONS[idx + 1];
+    if (next) setClaimantOpen(next.id);
+  }
+
+  function markDoneAndOpenNext(current: SectionId) {
+    setDone((prev) => new Set(prev).add(current));
+    const idx = SECTIONS.findIndex((s) => s.id === current);
+    const next = SECTIONS[idx + 1];
+    if (next) setOpen(next.id);
+  }
+
+  function openSaveResumeModal() {
+    if (!getUserToken()) {
+      setError("Please complete supporter registration before saving your progress.");
+      return;
+    }
+    setSaveModalOpen(true);
+  }
+
+  async function persistProgressBeforeSave() {
+    const fee = membershipType === "ORGANISATION" ? 500 : 250;
+    const stepBySection: Record<SectionId, number> = {
+      supporter: 1,
+      payment: 2,
+      confirmation: 3,
+      identity: 4,
+    };
+    const stepByTab = [4, 5, 6, 7];
+    await saveStep({
+      membershipType,
+      membershipFee: fee,
+      currentStep:
+        activeTab === 0 ? (stepBySection[open] ?? savedStep) : (stepByTab[activeTab] ?? savedStep),
+    }).catch(() => null);
+  }
+
+  async function handleSaveExit() {
+    setSaveModalSaving(true);
+    setError(null);
+    try {
+      await persistProgressBeforeSave();
+      const result = await requestSaveResume();
+      setSaveModalOpen(false);
+      setSaveMsg(
+        result.resumeUrl
+          ? "Progress saved — a resume link is in your email (and backend console)."
+          : "Progress saved — a resume link has been sent to your email."
+      );
+      router.push("/");
+    } catch {
+      setError("Could not save right now — please try again.");
+    } finally {
+      setSaveModalSaving(false);
+    }
+  }
+
+  function handleBack() {
+    setError(null);
+    if (activeTab === 1) {
+      const idx = LEGAL_SECTIONS.findIndex((s) => s.id === legalOpen);
+      if (idx > 0) setLegalOpen(LEGAL_SECTIONS[idx - 1].id);
+      return;
+    }
+    if (activeTab === 2) {
+      if (claimantOpen === "overview") {
+        goToTab(1, false);
+        setLegalOpen("evidence");
+        return;
+      }
+      const idx = CLAIMANT_SECTIONS.findIndex((s) => s.id === claimantOpen);
+      if (idx > 0) {
+        const prev = CLAIMANT_SECTIONS[idx - 1].id;
+        setClaimantOpen(prev);
+        if (prev === "overview") setClaimantIntroOpen(true);
+      }
+      return;
+    }
+    if (activeTab === 3) {
+      goToTab(2, false);
+      setClaimantOpen("stage2");
+      setClaimantIntroOpen(false);
+      return;
+    }
+    const idx = SECTIONS.findIndex((s) => s.id === open);
+    if (idx > 0) setOpen(SECTIONS[idx - 1].id);
+  }
+
+  // ── Section submit handlers ──
+  async function submitSupporter() {
+    setError(null);
+
+    if (!title || !forename.trim() || !surname.trim() || !email.trim()) {
+      setError("Please complete all required fields.");
+      return;
+    }
+
+    // When resuming an existing session the account already exists, so the
+    // password fields stay blank — only validate them for brand-new accounts.
+    const enteredEmail = email.toLowerCase().trim();
+    const currentUser = getUser();
+    const sameUser = currentUser?.email?.toLowerCase() === enteredEmail;
+
+    if (!sameUser) {
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+    }
+    if (!confirm1 || !confirm2) {
+      setError("Please tick both confirmation checkboxes to continue.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Register a fresh account whenever the entered email differs from the
+      // logged-in user; otherwise reuse the current (resumed) session.
+      if (!sameUser) {
+        clearUserToken();
+        const res = await fetch(`${getApiBase()}/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: forename.trim(),
+            lastName: surname.trim(),
+            email: enteredEmail,
+            password,
+            phone: phone.trim() || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(typeof data.error === "string" ? data.error : "Registration failed.");
+          return;
+        }
+        setUserToken(data.token);
+      }
+
+      // Persist the extra supporter details onto the application.
+      await saveStep({
+        applicationType: "SUPPORTER",
+        currentStep: 2,
+        stage1Data: {
+          title,
+          forename: forename.trim(),
+          surname: surname.trim(),
+          gmcNumber: gmcNumber.trim(),
+          address: address.trim(),
+          dob,
+          phone: phone.trim(),
+          confirmedPractitioner: confirm1,
+          confirmedIndependentDecision: confirm2,
+        },
+      });
+
+      markDoneAndOpenNext("supporter");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Network error — is the API running?"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitPayment() {
+    setError(null);
+    if (!payMethod) {
+      setError("Please choose a payment method.");
+      return;
+    }
+    const fee = membershipType === "ORGANISATION" ? 500 : 250;
+    setLoading(true);
+    try {
+      if (!paymentPaid) {
+        await paymentRef.current?.processPayment();
+      }
+      await saveStep({ membershipType, membershipFee: fee, currentStep: 3 });
+      markDoneAndOpenNext("payment");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not process payment right now.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitConfirmation() {
+    setError(null);
+    setLoading(true);
+    markDoneAndOpenNext("confirmation");
+    try {
+      await saveStep({ currentStep: 4 }).catch(() => null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitIdentity() {
+    if (!identityConsent) {
+      setError("Please tick the consent checkbox to continue.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    setDone((prev) => new Set(prev).add("identity"));
+    goToTab(1);
+    try {
+      if (idFile) {
+        await saveEvidenceFile({
+          fileName: idFile.name,
+          fileUrl: `/uploads/identity/${idFile.name}`,
+          fileSize: idFile.size,
+          mimeType: idFile.type,
+        }).catch(() => null);
+      }
+      await saveStep({ currentStep: 5 }).catch(() => null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Tab-level submit handlers ──
+  function submitLegalOverview() {
+    setError(null);
+    markLegalDoneAndOpenNext("overview");
+  }
+
+  function submitPracticeSection() {
+    if (!practiceFullName.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (!practiceEmail.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (!gmcNumber.trim()) {
+      setError("Please enter your GMC number.");
+      return;
+    }
+    if (!practicePhone.trim()) {
+      setError("Please enter your phone number.");
+      return;
+    }
+    if (!practiceSpecialty.trim()) {
+      setError("Please enter your speciality.");
+      return;
+    }
+    if (!practiceDeanery) {
+      setError("Please select your deanery.");
+      return;
+    }
+    if (!practiceIncome.trim()) {
+      setError("Please enter your average gross private income.");
+      return;
+    }
+    if (!practiceYearStarted) {
+      setError("Please select the year you started private practice.");
+      return;
+    }
+    if (!practiceYearEnded) {
+      setError("Please select the year you ended private practice.");
+      return;
+    }
+    if (!practiceBupaNumber.trim()) {
+      setError("Please enter your BUPA number.");
+      return;
+    }
+    if (!practiceAxaNumber.trim()) {
+      setError("Please enter your AXA number.");
+      return;
+    }
+    if (practiceRecognisedOther === null) {
+      setError("Please indicate whether you are recognised by other insurers.");
+      return;
+    }
+    setError(null);
+    markLegalDoneAndOpenNext("practice");
+    saveStep({
+      stage1Data: {
+        ...savedStage1,
+        fullName: practiceFullName,
+        practiceEmail,
+        practicePhone,
+        specialty: practiceSpecialty,
+        deanery: practiceDeanery,
+        gmcNumber,
+        annualIncome: practiceIncome,
+        yearStartedPrivatePractice: practiceYearStarted,
+        yearEndedPrivatePractice: practiceYearEnded,
+        bupaNumber: practiceBupaNumber,
+        axaNumber: practiceAxaNumber,
+        recognisedByOtherInsurers: practiceRecognisedOther,
+        pmiPercentage: practicePmiPct,
+      },
+    }).catch(() => null);
+  }
+
+  function submitPmiSection() {
+    if (!pmiIncomeSource) {
+      setError("Please select how you receive income from private medical insurers.");
+      return;
+    }
+    if (!pmiPaidAxa && !pmiPaidBupa && !pmiPaidCompany && !pmiPaidLlp && !pmiPaidAlternative) {
+      setError("Please select at least one entity through which you were paid.");
+      return;
+    }
+    if (pmiPaidAxa && !pmiAxaYears) {
+      setError("Please select the years you were paid directly by AXA.");
+      return;
+    }
+    if (pmiPaidBupa && !pmiBupaYears) {
+      setError("Please select the years you were paid directly by BUPA.");
+      return;
+    }
+    if (pmiPaidCompany) {
+      if (!pmiCompanyName.trim() || !pmiCompanyNumber.trim() || !pmiCompanyDirectors.trim()) {
+        setError("Please complete all company details.");
+        return;
+      }
+    }
+    if (pmiPaidLlp) {
+      if (!pmiLlpName.trim() || !pmiLlpNumber.trim() || !pmiLlpMembers.trim()) {
+        setError("Please complete all LLP details.");
+        return;
+      }
+    }
+    if (pmiUploading) {
+      setError("Please wait for uploads to finish.");
+      return;
+    }
+    setError(null);
+    markLegalDoneAndOpenNext("pmi");
+    const pmiData = {
+      incomeSource: pmiIncomeSource,
+      paidDirectlyAxa: pmiPaidAxa,
+      axaYears: pmiAxaYears,
+      paidDirectlyBupa: pmiPaidBupa,
+      bupaYears: pmiBupaYears,
+      paidThroughCompany: pmiPaidCompany,
+      companyName: pmiCompanyName,
+      companyNumber: pmiCompanyNumber,
+      companyDirectors: pmiCompanyDirectors,
+      paidThroughLlp: pmiPaidLlp,
+      llpName: pmiLlpName,
+      llpRegistrationNumber: pmiLlpNumber,
+      llpMembers: pmiLlpMembers,
+      paidThroughAlternative: pmiPaidAlternative,
+    };
+    saveStep({
+      stage1Data: { ...savedStage1, pmi: pmiData },
+    }).catch(() => null);
+  }
+
+  async function submitEvidenceSection() {
+    if (evidenceUploading) {
+      setError("Please wait for uploads to finish.");
+      return;
+    }
+    if (!evidenceDisclosureAgreed) {
+      setError("Please confirm your disclosure obligations to continue.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    setLegalDone((prev) => new Set(prev).add("evidence"));
+    goToTab(2);
+    try {
+      await saveStep({ currentStep: 6 }).catch(() => null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function submitClaimantOverview() {
+    setError(null);
+    markClaimantDoneAndOpenNext("overview");
+    setClaimantIntroOpen(false);
+  }
+
+  function submitClaimantStage1() {
+    setError(null);
+    markClaimantDoneAndOpenNext("stage1");
+    saveStep({ currentStep: 6 }).catch(() => null);
+  }
+
+  async function submitClaimantStage2() {
+    setError(null);
+    setClaimantDone((prev) => {
+      const next = new Set(prev);
+      next.add("overview");
+      next.add("stage1");
+      next.add("stage2");
+      return next;
+    });
+    goToTab(3);
+    setLoading(true);
+    try {
+      await saveStep({ applicationType: "CLAIMANT", currentStep: 7 }).catch(() => null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitFinalTab() {
+    setError(null);
+    const allConfirmed =
+      explanationsDocuments.readMore.overarchingDeclaration.groups.every(
+        (group) => finalConfirmedGroups[group.title]
+      );
+    if (!allConfirmed) {
+      setError("Please confirm all items before submitting your registration.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await saveStep({ status: "COMPLETE", currentStep: 8 }).catch(() => null);
+      setCompletedTabs((prev) => new Set(prev).add(3));
+      setFinalSubmitted(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleContinue() {
+    if (activeTab === 0) {
+      if (open === "supporter") return submitSupporter();
+      if (open === "payment") return submitPayment();
+      if (open === "confirmation") return submitConfirmation();
+      if (open === "identity") return submitIdentity();
+      return;
+    }
+    if (activeTab === 1) {
+      if (legalOpen === "overview") return submitLegalOverview();
+      if (legalOpen === "practice") return submitPracticeSection();
+      if (legalOpen === "pmi") return submitPmiSection();
+      if (legalOpen === "evidence") return submitEvidenceSection();
+      return;
+    }
+    if (activeTab === 2) {
+      if (claimantOpen === "overview") return submitClaimantOverview();
+      if (claimantOpen === "stage1") return submitClaimantStage1();
+      if (claimantOpen === "stage2" || claimantDone.has("stage1")) {
+        return submitClaimantStage2();
+      }
+      return;
+    }
+    if (activeTab === 3) return submitFinalTab();
+  }
+
+  const canSelectTab = (i: number) => i <= activeTab || completedTabs.has(i);
+
+  return (
+    <div className="mx-auto max-w-4xl bg-white shadow-lg rounded-2xl">
+      {/* Top journey stepper */}
+      <StepperTabs
+        activeIndex={activeTab}
+        completed={completedTabs}
+        canSelect={canSelectTab}
+        onSelect={(i) => goToTab(i, false)}
+      />
+
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6">
+        {/* ── Tab 0: Become A Supporter (accordion) ── */}
+        {activeTab === 0 && (
+          <div className="space-y-3">
+            {SECTIONS.map((section) => {
+              const isLocked = section.id === "identity" && !done.has("confirmation");
+              return (
+              <AccordionItem
+                key={section.id}
+                label={section.label}
+                isOpen={open === section.id}
+                isDone={done.has(section.id)}
+                isLocked={isLocked}
+                onToggle={() => {
+                  if (isLocked) return;
+                  setOpen(open === section.id ? ("" as SectionId) : section.id);
+                }}
+              >
+                {section.id === "supporter" && (
+                  <SupporterForm
+                    {...{
+                      title, setTitle, forename, setForename, surname, setSurname,
+                      email, setEmail, gmcNumber, setGmcNumber, address, setAddress,
+                      dob, setDob, phone, setPhone, password, setPassword,
+                      confirmPassword, setConfirmPassword, confirm1, setConfirm1,
+                      confirm2, setConfirm2,
+                    }}
+                  />
+                )}
+
+                {section.id === "payment" && (
+                  <MembershipPaymentSection
+                    ref={paymentRef}
+                    membershipType={membershipType}
+                    setMembershipType={setMembershipType}
+                    payMethod={payMethod}
+                    setPayMethod={setPayMethod}
+                    paymentPaid={paymentPaid}
+                    onPaymentPaid={handlePaymentPaid}
+                  />
+                )}
+
+                {section.id === "confirmation" && <ConfirmationSection />}
+
+                {section.id === "identity" && (
+                  <IdentitySection
+                    agreed={identityConsent}
+                    setAgreed={setIdentityConsent}
+                  />
+                )}
+
+                {error && open === section.id && (
+                  <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {error}
+                  </p>
+                )}
+              </AccordionItem>
+            );
+            })}
+          </div>
+        )}
+
+        {/* ── Tab 1: Legal Documents (accordion) ── */}
+        {activeTab === 1 && (
+          <div className="space-y-3">
+            {LEGAL_SECTIONS.map((section, sectionIdx) => {
+              const isLocked =
+                sectionIdx > 0 &&
+                !legalDone.has(LEGAL_SECTIONS[sectionIdx - 1].id);
+              return (
+                <AccordionItem
+                  key={section.id}
+                  label={section.label}
+                  isOpen={legalOpen === section.id}
+                  isDone={legalDone.has(section.id)}
+                  isLocked={isLocked}
+                  onToggle={() => {
+                    if (isLocked) return;
+                    setLegalOpen(
+                      legalOpen === section.id ? ("" as LegalSectionId) : section.id
+                    );
+                  }}
+                >
+                  {section.id === "overview" && (
+                    <LegalDocumentIntroSection membershipType={membershipType} />
+                  )}
+
+                  {section.id === "practice" && (
+                    <PracticeInfoPanel
+                      fullName={practiceFullName}
+                      setFullName={setPracticeFullName}
+                      email={practiceEmail}
+                      setEmail={setPracticeEmail}
+                      gmcNumber={gmcNumber}
+                      setGmcNumber={setGmcNumber}
+                      phone={practicePhone}
+                      setPhone={setPracticePhone}
+                      specialty={practiceSpecialty}
+                      setSpecialty={setPracticeSpecialty}
+                      deanery={practiceDeanery}
+                      setDeanery={setPracticeDeanery}
+                      grossIncome={practiceIncome}
+                      setGrossIncome={setPracticeIncome}
+                      yearStarted={practiceYearStarted}
+                      setYearStarted={setPracticeYearStarted}
+                      yearEnded={practiceYearEnded}
+                      setYearEnded={setPracticeYearEnded}
+                      bupaNumber={practiceBupaNumber}
+                      setBupaNumber={setPracticeBupaNumber}
+                      axaNumber={practiceAxaNumber}
+                      setAxaNumber={setPracticeAxaNumber}
+                      recognisedOther={practiceRecognisedOther}
+                      setRecognisedOther={setPracticeRecognisedOther}
+                      pmiPercentage={practicePmiPct}
+                      setPmiPercentage={setPracticePmiPct}
+                    />
+                  )}
+
+                  {section.id === "pmi" && (
+                    <PmiRelationshipPanel
+                      incomeSource={pmiIncomeSource}
+                      setIncomeSource={setPmiIncomeSource}
+                      paidAxa={pmiPaidAxa}
+                      setPaidAxa={setPmiPaidAxa}
+                      axaYears={pmiAxaYears}
+                      setAxaYears={setPmiAxaYears}
+                      paidBupa={pmiPaidBupa}
+                      setPaidBupa={setPmiPaidBupa}
+                      bupaYears={pmiBupaYears}
+                      setBupaYears={setPmiBupaYears}
+                      paidCompany={pmiPaidCompany}
+                      setPaidCompany={setPmiPaidCompany}
+                      companyName={pmiCompanyName}
+                      setCompanyName={setPmiCompanyName}
+                      companyNumber={pmiCompanyNumber}
+                      setCompanyNumber={setPmiCompanyNumber}
+                      companyDirectors={pmiCompanyDirectors}
+                      setCompanyDirectors={setPmiCompanyDirectors}
+                      paidLlp={pmiPaidLlp}
+                      setPaidLlp={setPmiPaidLlp}
+                      llpName={pmiLlpName}
+                      setLlpName={setPmiLlpName}
+                      llpNumber={pmiLlpNumber}
+                      setLlpNumber={setPmiLlpNumber}
+                      llpMembers={pmiLlpMembers}
+                      setLlpMembers={setPmiLlpMembers}
+                      paidAlternative={pmiPaidAlternative}
+                      setPaidAlternative={setPmiPaidAlternative}
+                      setUploadingA={setPmiUploadingA}
+                      setUploadingB={setPmiUploadingB}
+                    />
+                  )}
+
+                  {section.id === "evidence" && (
+                    <EvidenceUploadsPanel
+                      onUploadingChange={setEvidenceUploading}
+                      disclosureAgreed={evidenceDisclosureAgreed}
+                      onDisclosureChange={setEvidenceDisclosureAgreed}
+                    />
+                  )}
+
+                  {error && legalOpen === section.id && (
+                    <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {error}
+                    </p>
+                  )}
+                </AccordionItem>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Tab 2: Become A Claimant (nested accordion) ── */}
+        {activeTab === 2 && (
+          <ClaimantMemberAccordion
+            claimantOpen={claimantOpen}
+            setClaimantOpen={setClaimantOpen}
+            claimantIntroOpen={claimantIntroOpen}
+            setClaimantIntroOpen={setClaimantIntroOpen}
+            claimantDone={claimantDone}
+            error={error}
+          />
+        )}
+
+        {/* ── Tab 3: Final Confirmation ── */}
+        {activeTab === 3 && (
+          <FinalConfirmationAccordion
+            membershipType={membershipType}
+            gmcNumber={gmcNumber}
+            confirmedGroups={finalConfirmedGroups}
+            onConfirmedGroupsChange={setFinalConfirmedGroups}
+            submitted={finalSubmitted}
+          />
+        )}
+
+        {/* Error (tab 3) */}
+        {error && activeTab === 3 && (
+          <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        {saveMsg && (
+          <p className="mt-4 rounded-lg bg-[#f3eef6] px-3 py-2 text-sm text-[#263238]">
+            {saveMsg}
+          </p>
+        )}
+
+        {/* Footer */}
+        <div className="mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            {(activeTab === 0 && open !== "supporter") ||
+            (activeTab === 1 && legalOpen !== "overview") ||
+            activeTab === 2 ||
+            activeTab === 3 ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className={`rounded-lg font-semibold uppercase tracking-wide text-white transition hover:opacity-90 ${
+                  activeTab === 2 || activeTab === 3
+                    ? "h-[56px] px-8 text-[16px]"
+                    : "px-5 py-2.5 text-sm"
+                }`}
+                style={{ backgroundColor: "#263238" }}
+              >
+                Back
+              </button>
+            ) : null}
+            <p className="text-sm text-zinc-500">
+              {alreadyRegistered ? "" : "Already registered? "}
+              {!alreadyRegistered && (
+                <Link href="/login" className="font-semibold hover:underline" style={{ color: PURPLE }}>
+                  Sign in
+                </Link>
+              )}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {!(activeTab === 3 && finalSubmitted) && (
+              <button
+                type="button"
+                onClick={openSaveResumeModal}
+                disabled={!getUserToken()}
+                className={`rounded-lg border border-[#627489] bg-white font-semibold uppercase tracking-wide text-[#263238] transition hover:bg-zinc-50 disabled:opacity-40 ${
+                  activeTab === 2 || activeTab === 3
+                    ? "h-[56px] px-8 text-[16px]"
+                    : "px-5 py-2.5 text-sm"
+                }`}
+              >
+                Save and Resume
+              </button>
+            )}
+            {activeTab === 3 && finalSubmitted ? (
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="h-[56px] rounded-lg px-8 text-[18px] font-semibold uppercase tracking-wide text-white transition hover:opacity-90"
+                style={{ backgroundColor: PURPLE }}
+              >
+                Home
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleContinue}
+                disabled={loading}
+                className={`rounded-lg font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-60 ${
+                  activeTab === 2 || activeTab === 3
+                    ? "h-[56px] px-8 text-[16px]"
+                    : "px-6 py-2.5 text-sm"
+                }`}
+                style={{
+                  backgroundColor:
+                    activeTab === 2 || activeTab === 3 ? CLAIMANT_ACTIVE : PURPLE,
+                }}
+              >
+                {loading
+                  ? "Please wait…"
+                  : activeTab === TABS.length - 1
+                    ? "Submit Registration"
+                    : open === "confirmation"
+                      ? "Next"
+                      : "Continue"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <SaveResumeModal
+        open={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onSaveExit={handleSaveExit}
+        saving={saveModalSaving}
+      />
+    </div>
+  );
+}
+
+/* ─────────────────────────── Journey stepper tabs ─────────────────────────── */
+
+function StepperTabs({
+  activeIndex,
+  canSelect,
+  onSelect,
+}: {
+  activeIndex: number;
+  completed: Set<number>;
+  canSelect: (i: number) => boolean;
+  onSelect: (i: number) => void;
+}) {
+  const inactiveTabs = TABS.slice(activeIndex + 1);
+
+  return (
+    <div className="w-full overflow-hidden">
+      <div className="flex w-full items-center gap-1">
+        {/* Group reached tabs (01…active) in one purple pill */}
+        <div
+          className="flex min-w-0 items-center gap-0.5 rounded-full p-1"
+          style={{
+            flex: activeIndex + 1,
+            background: "linear-gradient(90deg, #A838A8 0%, #660066 100%)",
+          }}
+        >
+          {TABS.slice(0, activeIndex + 1).map((label, i) => {
+            const isActive = i === activeIndex;
+            const selectable = canSelect(i);
+            const num = String(i + 1).padStart(2, "0");
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => selectable && onSelect(i)}
+                disabled={!selectable}
+                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-1.5 py-1.5 transition-colors sm:gap-2 sm:px-2 ${
+                  selectable ? "cursor-pointer" : "cursor-default"
+                }`}
+                style={{
+                  backgroundColor: isActive ? "rgba(0,0,0,0.12)" : "transparent",
+                }}
+              >
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-bold sm:h-7 sm:w-7 sm:text-xs"
+                  style={{ color: PURPLE }}
+                >
+                  {num}
+                </span>
+                <span className="truncate text-[11px] font-semibold text-white sm:text-xs">
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Remaining inactive tabs */}
+        {inactiveTabs.map((label, offset) => {
+          const i = activeIndex + 1 + offset;
+          const num = String(i + 1).padStart(2, "0");
+          return (
+            <button
+              key={label}
+              type="button"
+              disabled
+              className="flex min-w-0 flex-1 cursor-not-allowed items-center justify-center gap-1.5 rounded-full px-1.5 py-1.5 sm:gap-2 sm:px-2"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#374151] text-[10px] font-bold text-white sm:h-7 sm:w-7 sm:text-xs">
+                {num}
+              </span>
+              <span className="truncate text-[11px] font-semibold text-[#263238]sm:text-xs">
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Accordion shell ─────────────────────────── */
+
+function AccordionItem({
+  label,
+  isOpen,
+  isDone,
+  isLocked = false,
+  onToggle,
+  children,
+}: {
+  label: string;
+  isOpen: boolean;
+  isDone: boolean;
+  isLocked?: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-zinc-200">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={isLocked}
+        className="flex w-full items-center justify-between px-5 py-3.5 text-left transition disabled:cursor-not-allowed"
+        style={{
+          backgroundColor: isOpen ? "#F3E8F3" : "#f5f5f5",
+          color: isOpen ? PURPLE : isLocked ? "rgba(38, 50, 56, 0.5)" : "#6b7280",
+        }}
+      >
+        <span className="flex items-center gap-2 pr-2 text-sm font-semibold leading-snug">
+          {isDone && <span className="text-green-600">✓</span>}
+          {label}
+        </span>
+        <span className="text-lg leading-none">{isOpen ? "−" : "+"}</span>
+      </button>
+      {isOpen && <div className="px-5 py-5">{children}</div>}
+    </div>
+  );
+}
+
+/* ─────────────────────────── Section 1 form ─────────────────────────── */
+
+const fieldCls =
+  "mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#802B7D] focus:ring-2 focus:ring-[#802B7D]/20";
+
+const practiceFieldCls =
+  "w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#802B7D] focus:ring-2 focus:ring-[#802B7D]/20";
+
+function Label({ children }: { children: ReactNode }) {
+  return (
+    <label className="block text-sm font-medium text-zinc-700">
+      {children} <span className="text-red-500">*</span>
+    </label>
+  );
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function SupporterForm(p: any) {
+  return (
+    <div>
+      {/* Disclaimer */}
+      <div className="flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
+        <span className="mt-0.5 shrink-0 text-amber-500">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </span>
+        <div className="space-y-2 text-xs leading-relaxed text-zinc-600">
+          <p>
+            This website provides information about collective legal action against
+            private medical insurers. It is intended only for medical practitioners
+            who may be eligible to participate.
+          </p>
+          <p>
+            By proceeding, you confirm that you are a registered medical practitioner
+            who has provided services under private medical insurance arrangements.
+          </p>
+          <p>
+            The information on this site is provided for potential claimants only. If
+            you are employed by or represent any of the defendant insurance companies
+            BUPA Insurance Limited or AXA PPP, you should not proceed beyond this page.
+          </p>
+          <p>
+            Detailed legal documents and case materials available to registered members
+            are legally privileged and confidential to the litigation.
+          </p>
+        </div>
+      </div>
+
+      <h3 className="mt-6 text-base font-bold" style={{ color: PURPLE }}>
+        Become a Supporter Member of the FIPO Fair Pay Action Group
+      </h3>
+
+      <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+        <div>
+          <Label>Title</Label>
+          <select value={p.title} onChange={(e) => p.setTitle(e.target.value)} className={fieldCls}>
+            <option value="">Select</option>
+            {TITLES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label>Forename</Label>
+          <input className={fieldCls} placeholder="Forename" value={p.forename} onChange={(e) => p.setForename(e.target.value)} />
+        </div>
+        <div>
+          <Label>Surname</Label>
+          <input className={fieldCls} placeholder="Surname" value={p.surname} onChange={(e) => p.setSurname(e.target.value)} />
+        </div>
+        <div>
+          <Label>Email</Label>
+          <input type="email" className={fieldCls} placeholder="Email" value={p.email} onChange={(e) => p.setEmail(e.target.value)} />
+        </div>
+        <div>
+          <Label>GMC Number</Label>
+          <input className={fieldCls} placeholder="GMC Number" value={p.gmcNumber} onChange={(e) => p.setGmcNumber(e.target.value)} />
+        </div>
+        <div>
+          <Label>Address</Label>
+          <input className={fieldCls} placeholder="Address" value={p.address} onChange={(e) => p.setAddress(e.target.value)} />
+        </div>
+        <div>
+          <Label>Date of birth</Label>
+          <input type="date" className={fieldCls} placeholder="DD/MM/YYYY" value={p.dob} onChange={(e) => p.setDob(e.target.value)} />
+        </div>
+        <div>
+          <Label>Phone number</Label>
+          <input type="tel" className={fieldCls} placeholder="Phone number" value={p.phone} onChange={(e) => p.setPhone(e.target.value)} />
+        </div>
+        <div>
+          <Label>Create Password</Label>
+          <input type="password" className={fieldCls} placeholder="Create Password" value={p.password} onChange={(e) => p.setPassword(e.target.value)} />
+        </div>
+        <div>
+          <Label>Confirm password</Label>
+          <input type="password" className={fieldCls} placeholder="Confirm password" value={p.confirmPassword} onChange={(e) => p.setConfirmPassword(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input type="checkbox" checked={p.confirm1} onChange={(e) => p.setConfirm1(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#802B7D]" />
+          <span className="text-xs leading-relaxed text-zinc-500">
+            I confirm that I am a registered medical practitioner. I further confirm
+            that I recognise that the information that I will view if I continue in the
+            process is confidential and that I will keep it confidential; and by
+            continuing, I confirm that I am not an employee of BUPA Insurance Limited or
+            AXA PPP or a partner or employee of a professional adviser acting on behalf
+            of BUPA Insurance Limited or AXA PPP. Any person in this excluded category
+            who proceeds will knowingly do so in breach of confidence.
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input type="checkbox" checked={p.confirm2} onChange={(e) => p.setConfirm2(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#802B7D]" />
+          <span className="text-xs leading-relaxed text-zinc-500">
+            I confirm that my decision to join this action is my own, made independently
+            and based on my own individual judgement. I have not discussed, coordinated,
+            or reached any agreement or understanding with any other practitioner, group
+            of practitioners, or organisation regarding my decision to join, my own fees,
+            or any other aspect of my commercial conduct. I understand that this action
+            concerns the legal claim against the named insurers only, and does not extend
+            to any arrangement between members regarding their own pricing or business
+            practices.
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Section 3: confirmation ─────────────────────────── */
+
+function ConfirmationSection() {
+  return (
+    <div className="flex flex-col items-center px-4 py-10 text-center sm:px-8 sm:py-14">
+      <Image
+        src="/images/right-tick.png"
+        alt=""
+        width={106}
+        height={106}
+        className="h-[106px] w-[106px]"
+        priority
+      />
+      <h2
+        className="mt-8 text-3xl font-bold uppercase sm:text-[40px]"
+        style={{ color: PURPLE }}
+      >
+        Thank you!
+      </h2>
+      <div className="mt-6 max-w-[677px] text-[16px] font-medium leading-[34px] text-[#223645]">
+        <p>You are now a Supporter Member of the FIPO Fair Pay Action Group</p>
+        <p>Please proceed to Step 2 if you would like to become a Claimant Member</p>
+        <p>If you press &lsquo;next&rsquo; below, this will trigger a &lsquo;Know Your Client&rsquo; check.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Tab: Become A Claimant ─────────────────────────── */
+
+function ClaimantAccordionIcon({ open }: { open: boolean }) {
+  return (
+    <Image
+      src={open ? "/accordion-remove.svg" : "/accordion-add.svg"}
+      alt=""
+      width={open ? 35 : 30}
+      height={open ? 35 : 30}
+      className="shrink-0"
+    />
+  );
+}
+
+function ClaimantMemberAccordion({
+  claimantOpen,
+  setClaimantOpen,
+  claimantIntroOpen,
+  setClaimantIntroOpen,
+  claimantDone,
+  error,
+}: {
+  claimantOpen: ClaimantSectionId;
+  setClaimantOpen: (id: ClaimantSectionId) => void;
+  claimantIntroOpen: boolean;
+  setClaimantIntroOpen: (open: boolean) => void;
+  claimantDone: Set<ClaimantSectionId>;
+  error: string | null;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setClaimantIntroOpen(!claimantIntroOpen)}
+        className="flex min-h-[60px] w-full items-center justify-between px-[30px] py-3 text-left transition"
+        style={{
+          backgroundColor: claimantIntroOpen ? "#F3E8F3" : "#f5f5f5",
+          color: claimantIntroOpen ? CLAIMANT_ACTIVE : CLAIMANT_HEADING,
+        }}
+      >
+        <span className="pr-4 text-[18px] font-medium leading-normal">
+          Become a Claimant Member
+        </span>
+        <ClaimantAccordionIcon open={claimantIntroOpen} />
+      </button>
+
+      {claimantIntroOpen && (
+        <div className="bg-white px-[24px] py-6">
+          <ClaimantIntroSection />
+          {error && claimantOpen === "overview" && (
+            <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+
+      {CLAIMANT_STAGE_SECTIONS.map((section, sectionIdx) => {
+        const prevId =
+          sectionIdx === 0 ? "overview" : CLAIMANT_STAGE_SECTIONS[sectionIdx - 1].id;
+        const isLocked = !claimantDone.has(prevId);
+        const isOpen = claimantOpen === section.id;
+
+        return (
+          <div key={section.id}>
+            <button
+              type="button"
+              disabled={isLocked}
+              onClick={() => {
+                if (isLocked) return;
+                setClaimantIntroOpen(false);
+                setClaimantOpen(isOpen ? ("" as ClaimantSectionId) : section.id);
+              }}
+              className="flex min-h-[60px] w-full items-center justify-between border-t border-zinc-200 px-[30px] py-4 text-left transition disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: isOpen ? "#F3E8F3" : "#f5f5f5",
+                color: isOpen
+                  ? CLAIMANT_ACTIVE
+                  : isLocked
+                    ? section.id === "stage1"
+                      ? "rgba(34, 54, 69, 0.5)"
+                      : "rgba(38, 50, 56, 0.5)"
+                    : CLAIMANT_HEADING,
+                fontWeight: isOpen || !isLocked ? 500 : 400,
+              }}
+            >
+              <span className="pr-4 text-[18px] leading-normal">
+                {section.label}
+              </span>
+              <ClaimantAccordionIcon open={isOpen} />
+            </button>
+
+            {isOpen && section.id === "stage1" && <ClaimantStage1Panel />}
+
+            {isOpen && section.id === "stage2" && <ClaimantStage2Panel />}
+
+            {error && claimantOpen === section.id && (
+              <p className="border-t border-zinc-200 bg-white px-[30px] py-3 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ClaimantPurpleCheck() {
+  return (
+    <svg
+      width="34"
+      height="34"
+      viewBox="0 0 34 34"
+      fill="none"
+      className="shrink-0"
+      aria-hidden
+    >
+      <path
+        d="M14.1667 23.2333L8.5 17.5667L10.4833 15.5833L14.1667 19.2667L23.5167 9.91667L25.5 11.9L14.1667 23.2333Z"
+        fill={PURPLE}
+      />
+    </svg>
+  );
+}
+
+function ClaimantStage1Panel() {
+  const bullets = [
+    "If you paid \u00a3250 to become a Supporter Member then the fee which will be deducted from any damages associated with your claim will be 32.5% + VAT; and if you paid \u00a3500 then the fee deducted from any damages associated with your claim will be 30% + VAT.",
+    "FIPO will instruct Harcus Parker as its and your solicitors, who will in turn instruct Suzanne Rab, a barrister in independent practice at Matrix Chambers, who FIPO has instructed directly;",
+    "FIPO will use the action group\u2019s funds, which include your subscriptions, to contribute to legal costs during the \u2018Pre-Action Phase\u2019 described in the engagement letter and will use any balance to pay towards the cost of ATE insurance.",
+  ];
+
+  return (
+    <div className="bg-white px-[24px] py-6">
+      <h4
+        className="text-[21px] font-semibold leading-[40px]"
+        style={{ color: CLAIMANT_ACTIVE }}
+      >
+        Stage 1: approval of the terms of FIPO&rsquo;s engagement with Harcus Parker
+        and Counsel
+      </h4>
+
+      <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <p className="max-w-[752px] text-[16px] font-normal leading-[30px] text-[#223645]">
+          The reason you are asked to approve this is that the structure of the
+          group is that you provide FIPO with authority to run the claim on your
+          behalf. You therefore need to know how you will be charged, through
+          FIPO executing the agreements for you, because this has a direct impact
+          on you and in particular on how much you will be charged.
+        </p>
+        <div
+          className="flex h-[150px] w-[160px] shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: CLAIMANT_PANEL_BG }}
+        >
+          <Image src="/handshake-icon.svg" alt="" width={100} height={100} />
+        </div>
+      </div>
+
+      <div className="mt-8 flex flex-col gap-8 xl:flex-row xl:items-start">
+        <ul className="flex max-w-[460px] flex-col gap-[15px]">
+          {bullets.map((item) => (
+            <li key={item} className="flex items-start gap-[10px]">
+              <ClaimantPurpleCheck />
+              <span
+                className="font-normal"
+                style={{
+                  fontSize: 16,
+                  lineHeight: "30px",
+                  color: "#263238",
+                }}
+              >
+                {item}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <div
+          className="w-full max-w-[350px] shrink-0 rounded-lg border p-[20px]"
+          style={{
+            backgroundColor: CLAIMANT_PANEL_BG,
+            borderColor: CLAIMANT_PANEL_BORDER,
+            minHeight: 340,
+          }}
+        >
+          <h5
+            className="font-semibold leading-normal"
+            style={{ color: PURPLE, fontSize: 16 }}
+          >
+            Review the engagement documents
+          </h5>
+          <p
+            className="mt-4 font-normal"
+            style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+          >
+            The engagement documents may be reviewed here:
+          </p>
+          <button
+            type="button"
+            className="mt-4 flex h-[58px] w-full items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 text-[14px] font-normal text-white transition hover:opacity-90"
+            style={{
+              backgroundColor: CLAIMANT_ACTIVE,
+              borderColor: PURPLE,
+            }}
+          >
+            <Image src="/description-icon.svg" alt="" width={24} height={24} />
+            Review Engagement Documents
+          </button>
+          <p
+            className="mt-4 font-normal"
+            style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+          >
+            To view the engagement documents in pdf,{" "}
+            <a href="#" className="font-semibold" style={{ color: PURPLE }}>
+              click here.
+            </a>
+          </p>
+          <a
+            href="#"
+            className="mt-4 inline-flex items-center gap-[10px]"
+            style={{ color: PURPLE }}
+          >
+            <Image src="/pdf-file-icon.svg" alt="" width={30} height={30} />
+            <span className="font-semibold" style={{ fontSize: 16, lineHeight: "24px" }}>
+              Download PDF
+            </span>
+            <Image src="/open-in-new.svg" alt="" width={24} height={24} />
+          </a>
+        </div>
+      </div>
+
+      <div
+        className="mt-8 flex h-[80px] items-center gap-5 rounded-[10px] border px-[18px]"
+        style={{
+          backgroundColor: CLAIMANT_PANEL_BG,
+          borderColor: CLAIMANT_PANEL_BORDER,
+        }}
+      >
+        <Image
+          src="/info-icon.svg"
+          alt=""
+          width={50}
+          height={50}
+          className="shrink-0"
+        />
+        <p className="text-[16px] font-normal leading-normal text-[#223645]">
+          For an explanation of the arrangements, please see the text of the
+          engagement letter itself.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+const CLAIMANT_STAGE2_LEFT_BULLETS = [
+  "Please note that the delegation of authority to FIPO is complete and extends to decisions about settlement as well as strategy and day to day conduct.",
+  "Please also note that if you die or become incapable while the Claims are ongoing, the power of attorney will be revoked. It will be necessary for your attorney under an LPA or your personal representatives to execute a further power of attorney.",
+  "Please note also that if you were paid through another entity we may need to come back to you to ask that you procure that the entity executes a further power of attorney.",
+  "The power of attorney should be signed through docusign and requires a witness",
+];
+
+const CLAIMANT_STAGE2_LMA_FEATURES = [
+  "Confirmation of the practical impact of the power of attorney",
+  "A declaration of common purpose with the other medical professionals who join the action group",
+  "Your agreement to cooperate with FIPO in the progression of the Claims, including by disclosing documents to FIPO so that it can comply with the formal requirements of the court\u2019s rules;",
+  "Your agreement as to how your information will be used;",
+  "Your agreement as to how cost and theoretical risk will be shared; and",
+  "Your agreement as to the distribution of damages.",
+];
+
+const claimantStage2InputCls =
+  "w-full rounded-lg border bg-white px-4 font-medium outline-none transition placeholder:font-medium placeholder:text-[#627489] focus:border-[#802B7D] focus:ring-2 focus:ring-[#802B7D]/20";
+
+function ClaimantWitnessLabel({
+  children,
+  required,
+}: {
+  children: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label className="font-medium" style={{ fontSize: 16, color: "#223645" }}>
+      {children}
+      {required ? <span style={{ color: "#e53935" }}> *</span> : null}
+    </label>
+  );
+}
+
+function ClaimantStage2UploadRow({
+  title,
+  subtitle,
+  status,
+  onUpload,
+  onDelete,
+}: {
+  title: string;
+  subtitle: string;
+  status: "empty" | "completed";
+  onUpload?: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <div
+      className="relative flex h-[52px] items-center rounded-lg border bg-white px-3"
+      style={{ borderColor: CLAIMANT_INPUT_BORDER }}
+    >
+      <Image
+        src="/attach-file.svg"
+        alt=""
+        width={30}
+        height={30}
+        className="shrink-0"
+      />
+      <p className="ml-2 min-w-0 flex-1 font-medium leading-normal">
+        <span style={{ fontSize: 16, color: "#223645" }}>{title}</span>
+        <span style={{ fontSize: 14, color: "#627489" }}> {subtitle}</span>
+      </p>
+      {status === "completed" ? (
+        <div className="ml-3 flex shrink-0 items-center gap-3">
+          <span
+            className="font-medium"
+            style={{ fontSize: 14, color: "#1fb024" }}
+          >
+            Completed
+          </span>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="transition hover:opacity-80"
+            aria-label={`Remove ${title}`}
+          >
+            <Image src="/delete-icon.svg" alt="" width={30} height={30} />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onUpload}
+          className="ml-3 shrink-0 transition hover:opacity-80"
+          aria-label={`Upload ${title}`}
+        >
+          <Image src="/cloud-upload.svg" alt="" width={30} height={30} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ClaimantStage2Panel() {
+  const [witnessName, setWitnessName] = useState("");
+  const [witnessEmail, setWitnessEmail] = useState("");
+  const [witnessAddress, setWitnessAddress] = useState("");
+  const [photoIdStatus, setPhotoIdStatus] = useState<"empty" | "completed">(
+    "completed"
+  );
+  const [proofStatus, setProofStatus] = useState<"empty" | "completed">("empty");
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const proofInputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="bg-white px-[24px] py-6">
+      <p
+        className="font-normal"
+        style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+      >
+        Please note that this will have the effect of granting to FIPO the right
+        to bring your claim. We remind you again of the implications of becoming
+        a claimant member, which can be read{" "}
+        <Link
+          href="/explanations#key-implications"
+          className="font-semibold"
+          style={{ color: PURPLE }}
+        >
+          here
+        </Link>
+        .
+      </p>
+      <p
+        className="mt-4 font-normal"
+        style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+      >
+        The power of attorney is your way of giving authority to FIPO to act as
+        the claimant in the intended litigation.
+      </p>
+
+      <div className="mt-8 flex flex-col gap-5 xl:flex-row xl:items-start">
+        <div className="min-w-0 max-w-[580px] flex-1">
+          <ul className="flex flex-col gap-[10px]">
+            {CLAIMANT_STAGE2_LEFT_BULLETS.map((item) => (
+              <li key={item} className="flex items-start gap-[10px]">
+                <ClaimantPurpleCheck />
+                <span
+                  className="font-normal"
+                  style={{
+                    fontSize: 16,
+                    lineHeight: "30px",
+                    color: "#263238",
+                  }}
+                >
+                  {item}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <h5
+            className="mt-10 font-semibold leading-normal"
+            style={{ color: CLAIMANT_ACTIVE, fontSize: 18 }}
+          >
+            Witness details
+          </h5>
+
+          <div className="mt-6 grid grid-cols-1 gap-[15px] sm:grid-cols-2">
+            <div className="flex flex-col gap-[7px]">
+              <ClaimantWitnessLabel required>Full name</ClaimantWitnessLabel>
+              <input
+                type="text"
+                value={witnessName}
+                onChange={(e) => setWitnessName(e.target.value)}
+                placeholder="Full name"
+                className={`${claimantStage2InputCls} h-[52px]`}
+                style={{
+                  borderColor: CLAIMANT_INPUT_BORDER,
+                  fontSize: 16,
+                  color: "#223645",
+                }}
+              />
+            </div>
+            <div className="flex flex-col gap-[7px]">
+              <ClaimantWitnessLabel required>Email</ClaimantWitnessLabel>
+              <input
+                type="email"
+                value={witnessEmail}
+                onChange={(e) => setWitnessEmail(e.target.value)}
+                placeholder="Email"
+                className={`${claimantStage2InputCls} h-[52px]`}
+                style={{
+                  borderColor: CLAIMANT_INPUT_BORDER,
+                  fontSize: 16,
+                  color: "#223645",
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-[7px]">
+            <ClaimantWitnessLabel required>Address</ClaimantWitnessLabel>
+            <textarea
+              value={witnessAddress}
+              onChange={(e) => setWitnessAddress(e.target.value)}
+              placeholder="Enter Address"
+              rows={3}
+              className={`${claimantStage2InputCls} min-h-[100px] resize-none py-3`}
+              style={{
+                borderColor: CLAIMANT_INPUT_BORDER,
+                fontSize: 16,
+                color: "#223645",
+              }}
+            />
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3">
+            <ClaimantStage2UploadRow
+              title="Photo ID"
+              subtitle="(Passport / driving licence)"
+              status={photoIdStatus}
+              onUpload={() => photoInputRef.current?.click()}
+              onDelete={() => setPhotoIdStatus("empty")}
+            />
+            <ClaimantStage2UploadRow
+              title="Proof of address"
+              subtitle="(utility bill, bank statement, etc.)"
+              status={proofStatus}
+              onUpload={() => proofInputRef.current?.click()}
+              onDelete={() => setProofStatus("empty")}
+            />
+            <input
+              ref={photoInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => {
+                if (e.target.files?.[0]) setPhotoIdStatus("completed");
+              }}
+            />
+            <input
+              ref={proofInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => {
+                if (e.target.files?.[0]) setProofStatus("completed");
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="w-full max-w-[341px] shrink-0 xl:border-l xl:border-zinc-200 xl:pl-6">
+          <h5
+            className="font-semibold leading-normal"
+            style={{ color: CLAIMANT_ACTIVE, fontSize: 21 }}
+          >
+            Litigation Management Agreement
+          </h5>
+          <p
+            className="mt-6 font-normal"
+            style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+          >
+            For an explanation of the Litigation Management Agreement, please see
+            the text of the engagement letter.
+          </p>
+          <p
+            className="mt-4 font-normal"
+            style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+          >
+            The main features of the LMA are:
+          </p>
+          <ul className="mt-4 flex flex-col gap-[15px]">
+            {CLAIMANT_STAGE2_LMA_FEATURES.map((item) => (
+              <li key={item} className="flex items-start gap-[15px]">
+                <ClaimantPurpleCheck />
+                <span
+                  className="font-normal"
+                  style={{
+                    fontSize: 16,
+                    lineHeight: "26px",
+                    color: "#223645",
+                  }}
+                >
+                  {item}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="mt-8 flex h-[58px] w-full max-w-[340px] items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 font-medium transition hover:opacity-90"
+            style={{
+              backgroundColor: CLAIMANT_STAGE2_BTN_BG,
+              borderColor: CLAIMANT_ACTIVE,
+              color: CLAIMANT_ACTIVE,
+              fontSize: 16,
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M8 18H16V16H8V18ZM8 14H16V12H8V14ZM6 22C5.45 22 4.97917 21.8042 4.5875 21.4125C4.19583 21.0208 4 20.55 4 20V4C4 3.45 4.19583 2.97917 4.5875 2.5875C4.97917 2.19583 5.45 2 6 2H14L20 8V20C20 20.55 19.8042 21.0208 19.4125 21.4125C19.0208 21.8042 18.55 22 18 22H6ZM13 9V4H6V20H18V9H13Z"
+                fill={CLAIMANT_ACTIVE}
+              />
+            </svg>
+            Review Litigation Agreement
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClaimantIntroSection() {
+  return (
+    <div className="flex items-start gap-[30px]">
+      <div className="flex h-[130px] w-[130px] shrink-0 items-center justify-center rounded-full bg-[#F6F0FA]">
+        <Image
+          src="/approve-doc-icon.svg"
+          alt=""
+          width={65}
+          height={65}
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3
+          className="text-[21px] font-semibold leading-normal"
+          style={{ color: CLAIMANT_ACTIVE }}
+        >
+          Become a Claimant Member
+        </h3>
+        <p className="mt-3 text-[16px] font-normal leading-[30px] text-[#223645]">
+          We now ask you to approve the documents that must be approved in order
+          for you to become a Claimant Member.
+        </p>
+        <div className="mt-6 flex h-[100px] items-center gap-5 rounded-lg bg-[#F6F0FA] px-[25px]">
+          <Image
+            src="/info-icon.svg"
+            alt=""
+            width={50}
+            height={50}
+            className="shrink-0"
+          />
+          <p className="text-[16px] font-normal leading-[30px] text-[#223645]">
+            There are two stages to complete. Please read each stage carefully
+            and review the documents before proceeding.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Tab: Final Confirmation ─────────────────────────── */
+
+const FINAL_RISK_ICONS = [
+  "/risk-no-guarantee.svg",
+  "/risk-time.svg",
+  "/risk-costs.svg",
+  "/risk-irrevocability.svg",
+  "/risk-tax.svg",
+] as const;
+
+function buildFinalConfirmationGroups(
+  membershipType: string,
+  gmcNumber: string
+): { title: string; items: string[] }[] {
+  const fee = membershipType === "ORGANISATION" ? 500 : 250;
+  const successFee = membershipType === "ORGANISATION" ? "30%" : "32.5%";
+  const groups =
+    explanationsDocuments.readMore.overarchingDeclaration.groups;
+
+  return groups.map((group, idx) => {
+    let items: string[] = [...group.items];
+    if (idx === 1) {
+      items = items.map((item) =>
+        item
+          .replace("£250 / £500", `£${fee}`)
+          .replace("32.5% / 30%", successFee)
+      );
+    }
+    if (idx === 3) {
+      items = items.map((item) =>
+        item.replace("[auto-fill]", gmcNumber.trim() || "—")
+      );
+    }
+    return { title: group.title, items };
+  });
+}
+
+function FinalInfoBox({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="flex items-center gap-5 rounded-lg px-[25px] py-5"
+      style={{ backgroundColor: CLAIMANT_PANEL_BG }}
+    >
+      <Image
+        src="/info-icon.svg"
+        alt=""
+        width={50}
+        height={50}
+        className="shrink-0"
+      />
+      <p className="text-[16px] font-normal leading-[30px] text-[#223645]">
+        {children}
+      </p>
+    </div>
+  );
+}
+
+function FinalConfirmationBullet({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-3 text-[16px] font-normal leading-[30px] text-[#223645]">
+      <span
+        className="mt-[10px] h-[10px] w-[10px] shrink-0 rounded-full"
+        style={{ backgroundColor: CLAIMANT_HEADING }}
+        aria-hidden
+      />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function FinalConfirmationCheckbox({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="mt-1 shrink-0 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      {checked ? (
+        <Image
+          src="/final-check-green.svg"
+          alt=""
+          width={22}
+          height={22}
+          className="block"
+        />
+      ) : (
+        <span
+          className="block h-[22px] w-[22px] rounded-[3px] border-[1.5px] bg-white"
+          style={{ borderColor: CLAIMANT_INPUT_BORDER }}
+          aria-hidden
+        />
+      )}
+    </label>
+  );
+}
+
+function FinalConfirmationGroup({
+  title,
+  items,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  items: string[];
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="mt-8">
+      <div className="flex items-start gap-[30px]">
+        <FinalConfirmationCheckbox
+          checked={checked}
+          onChange={onCheckedChange}
+        />
+        <h4
+          className="min-w-0 flex-1 text-[18px] font-semibold leading-normal"
+          style={{ color: CLAIMANT_ACTIVE }}
+        >
+          {title}
+        </h4>
+      </div>
+      <ul className="mt-4 space-y-3 pl-[52px]">
+        {items.map((item) => (
+          <FinalConfirmationBullet key={item}>{item}</FinalConfirmationBullet>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FinalThankYouSection() {
+  return (
+    <div className="flex flex-col items-center px-[30px] py-12 text-center sm:py-16">
+      <Image
+        src="/thank-you-check.svg"
+        alt=""
+        width={106}
+        height={106}
+        className="h-[106px] w-[106px]"
+        priority
+      />
+      <h3
+        className="mt-6 text-[40px] font-bold uppercase leading-normal sm:text-[50px]"
+        style={{ color: CLAIMANT_ACTIVE }}
+      >
+        Thank you!
+      </h3>
+      <div className="mt-4 max-w-[468px] text-[18px] font-medium leading-[34px] text-[#263238]">
+        <p>Your Application Is Currently Under Review.</p>
+        <p>We Will Contact You Within 3–5 Working Days.</p>
+      </div>
+    </div>
+  );
+}
+
+function FinalConfirmationAccordion({
+  membershipType,
+  gmcNumber,
+  confirmedGroups,
+  onConfirmedGroupsChange,
+  submitted,
+}: {
+  membershipType: string;
+  gmcNumber: string;
+  confirmedGroups: Record<string, boolean>;
+  onConfirmedGroupsChange: (groups: Record<string, boolean>) => void;
+  submitted: boolean;
+}) {
+  const [mainOpen, setMainOpen] = useState(!submitted);
+  const [thankYouOpen, setThankYouOpen] = useState(submitted);
+  const declaration = explanationsDocuments.readMore.overarchingDeclaration;
+  const confirmationGroups = buildFinalConfirmationGroups(
+    membershipType,
+    gmcNumber
+  );
+
+  useEffect(() => {
+    if (submitted) {
+      setMainOpen(false);
+      setThankYouOpen(true);
+    }
+  }, [submitted]);
+
+  function setGroupConfirmed(title: string, checked: boolean) {
+    onConfirmedGroupsChange({ ...confirmedGroups, [title]: checked });
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setMainOpen(!mainOpen)}
+        className="flex min-h-[60px] w-full items-center justify-between px-[30px] py-3 text-left transition"
+        style={{
+          backgroundColor: mainOpen ? "#F3E8F3" : "#f5f5f5",
+          color: mainOpen ? CLAIMANT_ACTIVE : CLAIMANT_HEADING,
+        }}
+      >
+        <span className="pr-4 text-[18px] font-medium leading-normal">
+          Final Confirmation &amp; Risk Warnings
+        </span>
+        <ClaimantAccordionIcon open={mainOpen} />
+      </button>
+
+      {mainOpen && (
+        <div className="bg-white px-[30px] py-6">
+          <div className="flex items-start gap-[30px]">
+            <div className="flex h-[130px] w-[130px] shrink-0 items-center justify-center rounded-full bg-[#F6F0FA]">
+              <Image
+                src="/final-assignment-icon.svg"
+                alt=""
+                width={65}
+                height={65}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3
+                className="text-[24px] font-semibold leading-normal"
+                style={{ color: CLAIMANT_ACTIVE }}
+              >
+                {declaration.confirmationTitle}
+              </h3>
+              <p className="mt-3 text-[18px] font-normal leading-[30px] text-[#223645]">
+                {declaration.confirmationIntro}
+              </p>
+            </div>
+          </div>
+
+          {confirmationGroups.map((group) => (
+            <FinalConfirmationGroup
+              key={group.title}
+              title={group.title}
+              items={group.items}
+              checked={!!confirmedGroups[group.title]}
+              onCheckedChange={(checked) =>
+                setGroupConfirmed(group.title, checked)
+              }
+            />
+          ))}
+
+          <div className="mt-8">
+            <FinalInfoBox>
+              If you have any questions before signing, please contact{" "}
+              <a
+                href="mailto:fipo@harcusparker.co.uk"
+                className="font-medium underline"
+                style={{ color: CLAIMANT_ACTIVE }}
+              >
+                fipo@harcusparker.co.uk
+              </a>
+              . {declaration.closingNote}
+            </FinalInfoBox>
+          </div>
+
+          <h3
+            className="mt-10 text-[24px] font-semibold leading-normal"
+            style={{ color: CLAIMANT_ACTIVE }}
+          >
+            Risk Warnings
+          </h3>
+
+          <div className="mt-8 space-y-8">
+            {explanationsSummaryRisk.items.map((item, idx) => (
+              <div key={item.title} className="flex items-start gap-5">
+                <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full">
+                  <Image
+                    src={FINAL_RISK_ICONS[idx]}
+                    alt=""
+                    width={60}
+                    height={60}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4
+                    className="text-[18px] font-semibold leading-normal"
+                    style={{ color: CLAIMANT_ACTIVE }}
+                  >
+                    {item.title}
+                  </h4>
+                  <p className="mt-2 text-[16px] font-normal leading-[30px] text-[#223645]">
+                    {item.body}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8">
+            <FinalInfoBox>
+              If you have any questions before signing, please contact{" "}
+              <a
+                href="mailto:fipo@harcusparker.co.uk"
+                className="font-medium underline"
+                style={{ color: CLAIMANT_ACTIVE }}
+              >
+                fipo@harcusparker.co.uk
+              </a>
+              . <strong>{declaration.closingNote}</strong>
+            </FinalInfoBox>
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setThankYouOpen(!thankYouOpen)}
+        className="flex min-h-[60px] w-full items-center justify-between border-t border-zinc-200 px-[30px] py-4 text-left transition"
+        style={{
+          backgroundColor: thankYouOpen ? "#F3E8F3" : "#f5f5f5",
+          color: thankYouOpen ? CLAIMANT_ACTIVE : CLAIMANT_HEADING,
+        }}
+      >
+        <span className="pr-4 text-[18px] font-medium leading-normal">
+          Thank You
+        </span>
+        <ClaimantAccordionIcon open={thankYouOpen} />
+      </button>
+
+      {thankYouOpen && (
+        <div className="border-t border-zinc-200 bg-white">
+          <FinalThankYouSection />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── Section 4: identity ─────────────────────────── */
+
+const LEADLY_PRIVACY_URL = "https://www.leadly.co.uk/privacy/privacy-policy";
+
+function FipoCheckbox({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <span
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border bg-white transition ${
+          checked ? "border-[#802B7D]" : "border-[#627489]"
+        }`}
+        aria-hidden
+      >
+        <svg
+          className={`h-3.5 w-3.5 text-[#22a06b] ${checked ? "block" : "hidden"}`}
+          viewBox="0 0 12 10"
+          fill="none"
+        >
+          <path
+            d="M1 5L4.5 8.5L11 1.5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+      <span className="text-sm leading-relaxed text-[#627489]">{children}</span>
+    </label>
+  );
+}
+
+const IDENTITY_BULLETS = [
+  "Your details will be checked against publicly-available records",
+  <>
+    We will carry out a &lsquo;soft&rsquo; credit check which will{" "}
+    <strong className="font-bold">NOT</strong> affect your credit score
+  </>,
+  "The process takes 30-60 seconds",
+  "If automatic verification is inconclusive, you will be asked to upload photo ID",
+] as const;
+
+function IdentitySection({
+  agreed,
+  setAgreed,
+}: {
+  agreed: boolean;
+  setAgreed: (value: boolean) => void;
+}) {
+  return (
+    <div className="py-2 sm:py-4">
+      <h3 className="text-xl font-bold sm:text-[22px]" style={{ color: PURPLE }}>
+        Identity Verification Required
+      </h3>
+      <p className="mt-4 text-[16px] font-medium leading-[34px] text-[#223645]">
+        To protect against fraud and ensure all participants are genuine medical practitioners,
+        we use Leadly to verify your identity against official records.
+      </p>
+
+      <p className="mt-6 text-xl sm:text-[22px] font-bold leading-[34px]" style={{ color: PURPLE }}>
+        What happens:
+      </p>
+      <ul className="mt-3 space-y-1">
+        {IDENTITY_BULLETS.map((item, index) => (
+          <li key={index} className="flex gap-3 text-[16px] font-medium leading-[34px] text-[#223645]">
+            <span
+              className="mt-[13px] h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: PURPLE }}
+              aria-hidden
+            />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-6 text-[16px] font-medium leading-[34px] text-[#223645]">
+        <strong className="font-bold">Your data:</strong> Leadly processes your data in accordance
+        with{" "}
+        <a
+          href={LEADLY_PRIVACY_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold underline"
+          style={{ color: PURPLE }}
+        >
+          their privacy policy
+        </a>
+        . We do not store your ID documents permanently.
+      </p>
+
+      <div className="mt-8">
+        <FipoCheckbox checked={agreed} onChange={setAgreed}>
+          I consent to identity verification as described above
+        </FipoCheckbox>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Tab 2: legal document steps ─────────────────────────── */
+
+function LegalCallout({
+  variant,
+  icon,
+  children,
+}: {
+  variant: "time" | "warning" | "confidential";
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  const styles = {
+    time: "border-none",
+    warning: "border-amber-200 bg-amber-50 text-amber-900",
+    confidential: "border-[#aaaaaa] bg-[#F0F0F0] text-[#223645]",
+  };
+  return (
+    <div
+      className={`mt-6 flex gap-3 rounded-xl border p-4 text-[15px] font-medium leading-[28px] ${styles[variant]}`}
+    >
+      <span className="mt-0.5 shrink-0" style={{ color: PURPLE }}>
+        {icon}
+      </span>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function LegalDocumentIntroSection({ membershipType }: { membershipType: string }) {
+  const fee = membershipType === "ORGANISATION" ? 500 : 250;
+  const feeRate = fee === 500 ? "30%" : "32.5%";
+
+  return (
+    <div className="py-2 sm:py-4">
+      <h3 className="text-xl font-bold sm:text-[22px]" style={{ color: PURPLE }}>
+        Claimant Registration: Legal Document Section
+      </h3>
+
+      <div className="mt-4 space-y-4 text-[16px] font-medium leading-[28px] text-[#263238]">
+        <p>
+        You are now completing the formal legal registration to participate in the collective action. You should proceed only if you are a medical practitioner who may be eligible to participate. By proceeding, you confirm that you are a registered medical practitioner who has provided services under private medical insurance arrangements. If you are employed by or represent the defendant insurance companies BUPA Insurance Limited or AXA PPP you should not proceed.
+        </p>
+        <p>
+        This section is prepared by our solicitors Harcus Parker and its counsel Suzanne Rab and involves:
+        </p>
+        <ul className="list-disc space-y-1 pl-6">
+          <li>Providing information about your practice and PMI relationships</li>
+          <li>
+          Reviewing and signing legal documents (Power of Attorney, Litigation Management Agreement)
+          </li>
+          <li>Confirming your understanding of the process and your rights</li>
+        </ul>
+      </div>
+
+      <LegalCallout
+        variant="time"
+        icon={
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        }
+      >
+        Please allow 15-20 minutes to complete this section carefully. You can save your progress and return later if needed.
+      </LegalCallout>
+
+      <LegalCallout
+        variant="warning"
+        icon={
+          <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clipPath="url(#clip0_819_1553)">
+<path d="M29.6145 1.85846C31.8101 3.61739 32.9443 6.15862 34.2089 8.60857C35.2122 10.5225 36.2708 12.4064 37.3197 14.2956C37.9968 15.5171 38.67 16.7407 39.3435 17.9641C40.465 20.0005 41.5882 22.0359 42.7126 24.0707C43.1284 24.8233 43.5441 25.5759 43.9598 26.3285C44.2216 26.8024 44.4836 27.2762 44.7456 27.75C45.3513 28.8454 45.9554 29.9416 46.5562 31.0397C47.0449 31.9265 47.5394 32.807 48.0434 33.6849C48.2913 34.1251 48.5393 34.5653 48.7948 35.0189C49.0186 35.4097 49.2425 35.8006 49.4732 36.2033C50.4343 38.3955 50.4431 40.5476 50.0002 42.8741C49.0924 45.1022 47.8537 46.441 45.744 47.6158C44.207 48.2449 42.6498 48.1757 41.0099 48.1668C40.6265 48.1708 40.2432 48.1748 39.8482 48.1789C38.5863 48.1897 37.3247 48.189 36.0628 48.1872C35.1818 48.1902 34.3009 48.1936 33.4199 48.1973C31.5752 48.2032 29.7306 48.2029 27.8858 48.1988C25.5271 48.1943 23.1689 48.2075 20.8103 48.2257C18.9913 48.2372 17.1724 48.2379 15.3533 48.2354C14.484 48.2358 13.6146 48.2399 12.7454 48.2478C11.5271 48.2575 10.3098 48.2521 9.09158 48.2431C8.55813 48.252 8.55813 48.252 8.0139 48.2612C5.32497 48.2173 3.60374 47.3435 1.5627 45.6085C-0.221891 43.5192 -0.212918 41.5911 -0.180328 38.8944C0.130674 36.3292 1.31726 34.3552 2.61251 32.1563C2.88263 31.6783 3.15168 31.1997 3.4197 30.7205C4.09467 29.5194 4.78211 28.326 5.47389 27.1346C6.25748 25.78 7.02239 24.4148 7.79086 23.0516C8.19604 22.3343 8.60301 21.618 9.01176 20.9028C10.1942 18.829 11.3427 16.7407 12.4605 14.6316C12.59 14.3877 12.7194 14.1439 12.8528 13.8926C13.4829 12.704 14.1096 11.5138 14.7318 10.321C18.8658 2.48853 18.8658 2.48853 21.4037 1.29694C24.087 0.613057 27.1336 0.506868 29.6145 1.85846ZM20.9355 8.22195C20.3183 9.3305 19.7268 10.4498 19.1408 11.5753C18.6889 12.4271 18.2362 13.2785 17.7828 14.1296C17.5536 14.5607 17.3243 14.9919 17.0881 15.4361C16.0624 17.3412 14.9905 19.2188 13.9162 21.0967C11.6712 25.0336 9.52263 29.0182 7.39709 33.0203C7.16263 33.4613 6.92817 33.9023 6.6866 34.3566C6.47959 34.7474 6.27257 35.1382 6.05928 35.5409C5.66315 36.2678 5.24903 36.9851 4.81836 37.692C4.02979 39.0311 3.96816 40.1947 4.29708 41.7022C5.35148 43.0788 6.12662 43.7356 7.8127 44.046C8.91235 44.0869 10.0025 44.1074 11.1022 44.1089C11.5989 44.1118 11.5989 44.1118 12.1056 44.1148C13.2 44.1205 14.2943 44.1231 15.3887 44.1253C16.1506 44.1276 16.9125 44.1298 17.6744 44.1321C19.2719 44.1362 20.8694 44.1384 22.467 44.1398C24.5108 44.1419 26.5545 44.1513 28.5983 44.1624C30.1723 44.1697 31.7463 44.1718 33.3204 44.1724C34.0737 44.1735 34.827 44.1767 35.5802 44.1818C36.6358 44.1885 37.691 44.1877 38.7466 44.1852C39.0557 44.1888 39.3648 44.1924 39.6834 44.1961C41.7095 44.1809 43.1306 43.8444 44.9221 42.8741C45.9091 41.3936 46.0073 40.2876 45.7033 38.5772C45.0933 37.061 44.2967 35.6703 43.4816 34.2559C43.252 33.8449 43.0223 33.4339 42.7857 33.0104C42.0722 31.7371 41.3497 30.4693 40.6252 29.2022C40.2042 28.4603 39.7836 27.7182 39.3633 26.976C38.748 25.8892 38.1322 24.8028 37.5136 23.7179C36.3155 21.6091 35.1472 19.4869 34.0075 17.3461C33.8122 16.9795 33.8122 16.9795 33.613 16.6056C32.9785 15.4125 32.3469 14.2179 31.7188 13.0214C29.7606 8.65061 29.7606 8.65061 26.5627 5.37408C23.6359 5.08621 22.4826 5.70076 20.9355 8.22195Z" fill="#C55F0F"/>
+<path d="M25.0002 15.1367C26.172 15.2344 26.172 15.2344 26.9533 16.0156C27.0313 17.0708 27.0626 18.0851 27.057 19.1406C27.0578 19.4498 27.0585 19.759 27.0593 20.0775C27.0598 20.7316 27.0584 21.3857 27.0551 22.0398C27.051 23.0429 27.0551 24.0457 27.0601 25.0488C27.0596 25.6836 27.0586 26.3184 27.057 26.9531C27.0586 27.2542 27.0602 27.5554 27.0618 27.8656C27.0431 29.9883 27.0431 29.9883 26.172 30.8594C25.0002 30.957 25.0002 30.957 23.8283 30.8594C22.8339 29.865 22.9505 29.222 22.9385 27.8656C22.9401 27.5645 22.9416 27.2634 22.9433 26.9531C22.9425 26.644 22.9418 26.3348 22.941 26.0162C22.9405 25.3621 22.9419 24.708 22.9452 24.054C22.9494 23.0508 22.9452 22.048 22.9402 21.0449C22.9407 20.4102 22.9417 19.7754 22.9433 19.1406C22.9417 18.8395 22.9401 18.5384 22.9385 18.2281C22.9643 15.3064 22.9643 15.3064 25.0002 15.1367Z" fill="#C55F0F"/>
+<path d="M25 34.668C26.1719 34.7656 26.1719 34.7656 26.9531 35.5469C27.0508 36.7188 27.0508 36.7188 26.9531 37.8906C26.1719 38.6719 26.1719 38.6719 25 38.7695C23.8281 38.6719 23.8281 38.6719 23.0469 37.8906C22.9492 36.7188 22.9492 36.7188 23.0469 35.5469C23.8281 34.7656 23.8281 34.7656 25 34.668Z" fill="#C55F0F"/>
+</g>
+<defs>
+<clipPath id="clip0_819_1553">
+<rect width="50" height="50" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+        }
+      >
+        <strong>Important:</strong> The legal documents you will sign are binding. Please
+        read them carefully or seek independent legal advice if you have concerns.
+      </LegalCallout>
+
+      <p className="mt-6 text-xl font-bold leading-[34px]" style={{ color: PURPLE }}>
+      Through Step 2
+      </p>
+      <p className="mt-6 text-[16px] font-medium leading-[28px] text-[#263238]">
+      Through Step 2 you will be asked to provide the information that Harcus Parker initially require for us to put your claim to the defendants
+      </p>
+      <p className="mt-6 text-[16px] font-medium leading-[28px] text-[#263238]">
+      You should first have familiarised yourself with the implications of becoming a claimant member, which can be read here[DP1]  and with the descriptions and Important Legal Notices which appear on the Action Group’s microsite.
+      </p>
+
+      <p className="mt-6 text-xl font-bold leading-[34px]" style={{ color: PURPLE }}>
+        You will be asked:
+      </p>
+      <ul className="mt-3 list-disc space-y-2 pl-6 text-[16px] font-medium leading-[28px] text-[#263238]">
+        <li>
+        To approve the terms of FIPO’s engagement with its solicitors, Harcus Parker, and its counsel, Suzanne Rab, since the terms will be executed for you and on your behalf, and the legal team will in substance be acting for you and therefore  have a direct bearing on what you may receive from your claim (if you paid £250 at Step 1, then the fee deducted will be 32.5% + VAT; and if you paid £500 then the fee deducted will be 30% + VAT);
+        </li>
+        <li>
+        To execute a power of attorney in FIPO’s favour authorising FIPO to bring proceedings against the PMIs on your behalf and to agree to Harcus Parker's and Counsel's retainers on your behalf;
+        </li>
+        <li>To sign a “Litigation Management Agreement which regulates the relationship between you, FIPO, Harcus Parker as the solicitors who will be acting on your behalf and other members of the FIPO Fair Pay Action Group; and</li>
+        <li>To sign a declaration which records your understanding of the main features of the arrangements. Please note that you can read a fuller description and review the documents in full here.</li>
+      </ul>
+
+      <LegalCallout
+        variant="confidential"
+        icon={
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        }
+      >
+        <strong className="text-[#660066]">Confidentiality warning:</strong> further descriptions of the above documents and the documents themselves are available through the links provided below. Please note that these descriptions and documents are confidential and privileged and are intended for potential members of the FIPO Fair Pay Action Group only. By proceeding to review the documents and the descriptions of them, you confirm that you are either a working or retired medical practitioner who has received payments from private medical insurers in the past six years and that you are not an employee of BUPA Insurance Limited or AXA PPP or a partner or employee of a professional adviser acting on behalf of BUPA Insurance Limited or AXA PPP. Any person in this excluded category who proceeds will knowingly do so in breach of confidence.
+      </LegalCallout>
+    </div>
+  );
+}
+
+function PracticeInfoPanel(p: {
+  fullName: string;
+  setFullName: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
+  gmcNumber: string;
+  setGmcNumber: (v: string) => void;
+  phone: string;
+  setPhone: (v: string) => void;
+  specialty: string;
+  setSpecialty: (v: string) => void;
+  deanery: string;
+  setDeanery: (v: string) => void;
+  grossIncome: string;
+  setGrossIncome: (v: string) => void;
+  yearStarted: string;
+  setYearStarted: (v: string) => void;
+  yearEnded: string;
+  setYearEnded: (v: string) => void;
+  bupaNumber: string;
+  setBupaNumber: (v: string) => void;
+  axaNumber: string;
+  setAxaNumber: (v: string) => void;
+  recognisedOther: boolean | null;
+  setRecognisedOther: (v: boolean | null) => void;
+  pmiPercentage: string;
+  setPmiPercentage: (v: string) => void;
+}) {
+  const pct = Math.min(100, Math.max(0, Number(p.pmiPercentage) || 0));
+
+  return (
+    <div className="py-2 sm:py-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <PracticeLabel>Full name</PracticeLabel>
+          <input
+            className={fieldCls}
+            value={p.fullName}
+            onChange={(e) => p.setFullName(e.target.value)}
+            placeholder="Enter Full Name"
+          />
+        </div>
+        <div>
+          <PracticeLabel>Email</PracticeLabel>
+          <input
+            type="email"
+            className={fieldCls}
+            value={p.email}
+            onChange={(e) => p.setEmail(e.target.value)}
+            placeholder="Enter Email Address"
+          />
+        </div>
+        <div>
+          <PracticeLabel>GMC number</PracticeLabel>
+          <input
+            className={fieldCls}
+            value={p.gmcNumber}
+            onChange={(e) => p.setGmcNumber(e.target.value)}
+            placeholder="Enter GMC Number"
+          />
+        </div>
+        <div>
+          <PracticeLabel>Phone number</PracticeLabel>
+          <input
+            type="tel"
+            className={fieldCls}
+            value={p.phone}
+            onChange={(e) => p.setPhone(e.target.value)}
+            placeholder="Enter Phone number"
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-4">
+        <div>
+          <PracticeLabel>Speciality</PracticeLabel>
+          <input
+            className={fieldCls}
+            value={p.specialty}
+            onChange={(e) => p.setSpecialty(e.target.value)}
+            placeholder="Enter Speciality"
+          />
+        </div>
+        <div>
+          <PracticeLabel>Deanery</PracticeLabel>
+          <select
+            className={fieldCls}
+            value={p.deanery}
+            onChange={(e) => p.setDeanery(e.target.value)}
+          >
+            <option value="">Select Deanery</option>
+            {DEANERIES.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <PracticeLabel>Average gross private income</PracticeLabel>
+          <div className="relative mt-1">
+            <input
+              type="number"
+              min="0"
+              className={`${practiceFieldCls} pr-8`}
+              value={p.grossIncome}
+              onChange={(e) => p.setGrossIncome(e.target.value)}
+              placeholder="Enter Amount"
+            />
+            <span
+              className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[#627489]"
+              aria-hidden
+            >
+              £
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <PracticeLabel>Year started private practice</PracticeLabel>
+          <select
+            className={fieldCls}
+            value={p.yearStarted}
+            onChange={(e) => p.setYearStarted(e.target.value)}
+          >
+            <option value="">Select Year</option>
+            {PRACTICE_YEARS.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <PracticeLabel>Year ended private practice</PracticeLabel>
+          <select
+            className={fieldCls}
+            value={p.yearEnded}
+            onChange={(e) => p.setYearEnded(e.target.value)}
+          >
+            <option value="">Select Year</option>
+            {PRACTICE_YEARS.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <PracticeLabel>BUPA Number</PracticeLabel>
+          <input
+            className={fieldCls}
+            value={p.bupaNumber}
+            onChange={(e) => p.setBupaNumber(e.target.value)}
+            placeholder="BUPA Number"
+          />
+        </div>
+        <div>
+          <PracticeLabel>AXA Number</PracticeLabel>
+          <input
+            className={fieldCls}
+            value={p.axaNumber}
+            onChange={(e) => p.setAxaNumber(e.target.value)}
+            placeholder="Enter AXA Number"
+          />
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <PracticeLabel>Recognised by other insurers</PracticeLabel>
+        <div className="mt-2 flex items-center gap-6">
+          {[
+            { value: true, label: "Yes" },
+            { value: false, label: "No" },
+          ].map((opt) => (
+            <label key={String(opt.value)} className="flex cursor-pointer items-center gap-2">
+              <input
+                type="radio"
+                name="recognisedOther"
+                checked={p.recognisedOther === opt.value}
+                onChange={() => p.setRecognisedOther(opt.value)}
+                className="h-4 w-4 accent-[#802B7D]"
+              />
+              <span className="text-sm font-medium text-[#223645]">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-8 border-t border-zinc-100 pt-6">
+        <h4 className="text-base font-bold" style={{ color: PURPLE }}>
+          Estimated % of private practice
+        </h4>
+        <p className="mt-3 text-sm leading-relaxed text-[#223645]">
+          <strong>Note:</strong> This percentage helps us estimate the proportion of your
+          practice income that relates to private medical insurance work, which is used in
+          calculating potential damages.
+        </p>
+        <ul className="mt-3 space-y-1 text-sm leading-relaxed text-[#223645]">
+          <li>
+            <strong style={{ color: PURPLE }}>Include:</strong> All income from the BUPA,
+            AXA PPP and other PMIs
+          </li>
+          <li>
+            <strong style={{ color: PURPLE }}>Exclude:</strong> Self-pay private patients,
+            NHS work
+          </li>
+        </ul>
+
+        <div className="mt-5 flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={pct}
+              onChange={(e) => p.setPmiPercentage(e.target.value)}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full accent-[#802B7D]"
+              style={{
+                background: `linear-gradient(90deg, ${PURPLE} 0%, ${PURPLE} ${pct}%, #e5e7eb ${pct}%, #e5e7eb 100%)`,
+              }}
+            />
+            <div className="mt-1 flex justify-between text-xs text-[#627489]">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
+          </div>
+          <div className="w-16 shrink-0 rounded-lg border border-zinc-300 px-2 py-2 text-center text-sm font-semibold text-[#223645]">
+            {pct}%
+          </div>
+        </div>
+
+        <p className="mt-5 text-sm leading-relaxed text-[#223645]">
+          The next questions seek to identify the entities through which you dealt with the PMIs. We appreciate that this may be a mixed picture. Please note that if you were not paid directly it may be necessary to claim through the entity, which will require us to procure the agreement of the entity.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+const DEANERIES = [
+  "East of England",
+  "East Midlands",
+  "Kent, Surrey and Sussex",
+  "London",
+  "North East",
+  "North West",
+  "Northern Ireland",
+  "Scotland",
+  "South West",
+  "Wales",
+  "West Midlands",
+  "Yorkshire and the Humber",
+];
+
+const PRACTICE_YEARS = Array.from(
+  { length: new Date().getFullYear() - 1969 },
+  (_, i) => String(new Date().getFullYear() - i)
+);
+
+function PracticeLabel({ children }: { children: ReactNode }) {
+  return (
+    <label className="mb-1 block text-sm font-semibold text-[#660066]">
+      {children} <span className="text-red-500">*</span>
+    </label>
+  );
+}
+
+const PMI_INCOME_SOURCES = [
+  "Directly in my own name as a self-employed practitioner",
+  "Through a limited company of which I am a director",
+  "Through an LLP of which I am a member",
+  "Through a partnership of which I am a partner",
+  "Through an alternative structure",
+];
+
+function PmiRelationshipPanel(p: {
+  incomeSource: string;
+  setIncomeSource: (v: string) => void;
+  paidAxa: boolean;
+  setPaidAxa: (v: boolean) => void;
+  axaYears: string;
+  setAxaYears: (v: string) => void;
+  paidBupa: boolean;
+  setPaidBupa: (v: boolean) => void;
+  bupaYears: string;
+  setBupaYears: (v: string) => void;
+  paidCompany: boolean;
+  setPaidCompany: (v: boolean) => void;
+  companyName: string;
+  setCompanyName: (v: string) => void;
+  companyNumber: string;
+  setCompanyNumber: (v: string) => void;
+  companyDirectors: string;
+  setCompanyDirectors: (v: string) => void;
+  paidLlp: boolean;
+  setPaidLlp: (v: boolean) => void;
+  llpName: string;
+  setLlpName: (v: string) => void;
+  llpNumber: string;
+  setLlpNumber: (v: string) => void;
+  llpMembers: string;
+  setLlpMembers: (v: string) => void;
+  paidAlternative: boolean;
+  setPaidAlternative: (v: boolean) => void;
+  setUploadingA: (v: boolean) => void;
+  setUploadingB: (v: boolean) => void;
+}) {
+  return (
+    <div className="py-2 sm:py-4">
+      <h4 className="text-base font-bold text-[#660066]">
+        How do you receive income from private medical insurers?
+      </h4>
+      <p className="mt-2 text-sm text-[#223645]">
+        Select the option that currently applies (or most recently applied):
+      </p>
+      <div className="mt-4 space-y-3">
+        {PMI_INCOME_SOURCES.map((option) => (
+          <label key={option} className="flex cursor-pointer items-start gap-3">
+            <input
+              type="radio"
+              name="pmiIncomeSource"
+              checked={p.incomeSource === option}
+              onChange={() => p.setIncomeSource(option)}
+              className="mt-1 h-4 w-4 shrink-0 accent-[#802B7D]"
+            />
+            <span className="text-sm leading-relaxed text-[#223645]">{option}</span>
+          </label>
+        ))}
+      </div>
+      <p className="mt-4 text-sm leading-relaxed text-[#223645]">
+        <strong className="text-[#660066]">Note:</strong> If your structure changed over time or you're unsure, select "Multiple structures." We will work with you to identify where your losses sit — this will not disqualify you.
+      </p>
+
+      <h4 className="mt-8 text-[18px] font-semibold text-[#660066]">
+        Entities through which you were paid: please tell us, throughout your private practice whether:
+      </h4>
+
+      <div className="mt-6 space-y-4">
+        <PmiEntityYearRow
+          checked={p.paidAxa}
+          onChange={p.setPaidAxa}
+          label="You were paid directly by AXA"
+          years={p.axaYears}
+          onYearsChange={p.setAxaYears}
+        />
+        <PmiEntityYearRow
+          checked={p.paidBupa}
+          onChange={p.setPaidBupa}
+          label="You were paid directly by BUPA"
+          years={p.bupaYears}
+          onYearsChange={p.setBupaYears}
+          yearsLabel="if so, for which years"
+        />
+
+        <div>
+          <FipoCheckbox checked={p.paidCompany} onChange={p.setPaidCompany}>
+            <span className="text-sm text-[#223645]">You were paid through a company</span>
+          </FipoCheckbox>
+          <div className="mt-4 pl-8">
+            <p className="mb-3 text-sm font-bold text-[#660066]">Company details:</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <PracticeLabel>Company name</PracticeLabel>
+                <input
+                  className={practiceFieldCls}
+                  value={p.companyName}
+                  onChange={(e) => p.setCompanyName(e.target.value)}
+                  placeholder="Enter Company name"
+                />
+              </div>
+              <div>
+                <PracticeLabel>Company number</PracticeLabel>
+                <input
+                  className={practiceFieldCls}
+                  value={p.companyNumber}
+                  onChange={(e) => p.setCompanyNumber(e.target.value)}
+                  placeholder="Enter Company number"
+                />
+              </div>
+              <div>
+                <PracticeLabel>Directors</PracticeLabel>
+                <input
+                  className={practiceFieldCls}
+                  value={p.companyDirectors}
+                  onChange={(e) => p.setCompanyDirectors(e.target.value)}
+                  placeholder="Enter Directors"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <FipoCheckbox checked={p.paidLlp} onChange={p.setPaidLlp}>
+            <span className="text-sm text-[#223645]">You were paid through an LLP</span>
+          </FipoCheckbox>
+          <div className="mt-4 pl-8">
+            <p className="mb-3 text-sm font-bold text-[#660066]">LLP details:</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <PracticeLabel>Name</PracticeLabel>
+                <input
+                  className={practiceFieldCls}
+                  value={p.llpName}
+                  onChange={(e) => p.setLlpName(e.target.value)}
+                  placeholder="Enter Name"
+                />
+              </div>
+              <div>
+                <PracticeLabel>Registration number</PracticeLabel>
+                <input
+                  className={practiceFieldCls}
+                  value={p.llpNumber}
+                  onChange={(e) => p.setLlpNumber(e.target.value)}
+                  placeholder="Enter Registration number"
+                />
+              </div>
+              <div>
+                <PracticeLabel>Members</PracticeLabel>
+                <input
+                  className={practiceFieldCls}
+                  value={p.llpMembers}
+                  onChange={(e) => p.setLlpMembers(e.target.value)}
+                  placeholder="Enter Members"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <FipoCheckbox checked={p.paidAlternative} onChange={p.setPaidAlternative}>
+          <span className="text-sm text-[#223645]">
+            You were paid through an alternative structure
+          </span>
+        </FipoCheckbox>
+      </div>
+
+      <h4 className="mt-8 text-[18px] font-semibold text-[#660066]">
+        We ask you now to upload evidence of:
+      </h4>
+      <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="grid grid-cols-2 divide-x divide-zinc-200">
+          <PmiEvidenceDropzone
+            letter="a"
+            prefix="your / the relevant entity's relationship with "
+            boldSuffix="AXA and / or BUPA; and"
+            uploadKey="pmi-evidence-a"
+            setUploading={p.setUploadingA}
+          />
+          <PmiEvidenceDropzone
+            letter="b"
+            prefix="your / the relevant entity's relationship with "
+            boldSuffix="AXA and / or BUPA"
+            uploadKey="pmi-evidence-b"
+            setUploading={p.setUploadingB}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PmiEntityYearRow({
+  checked,
+  onChange,
+  label,
+  years,
+  onYearsChange,
+  yearsLabel = "If so, for which years",
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  years: string;
+  onYearsChange: (v: string) => void;
+  yearsLabel?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <FipoCheckbox checked={checked} onChange={onChange}>
+        <span className="text-sm text-[#223645]">{label}</span>
+      </FipoCheckbox>
+      <div className="w-full sm:max-w-[380px] sm:shrink-0">
+        <PracticeLabel>{yearsLabel}</PracticeLabel>
+        <select
+          className={practiceFieldCls}
+          value={years}
+          onChange={(e) => onYearsChange(e.target.value)}
+          disabled={!checked}
+        >
+          <option value="">Select Year</option>
+          {PRACTICE_YEARS.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+const EVIDENCE_FILE_TYPES = [
+  { label: "PDF", border: "#DC2626", text: "#DC2626" },
+  { label: "JPG", border: "#16A34A", text: "#16A34A" },
+  { label: "PNG", border: "#2563EB", text: "#2563EB" },
+  { label: "DOC", border: "#2563EB", text: "#2563EB" },
+  { label: "DOCX", border: "#2563EB", text: "#2563EB" },
+] as const;
+
+const PMI_EVIDENCE_FILE_TYPES = [
+  ...EVIDENCE_FILE_TYPES,
+  { label: "XLS", border: "#166534", text: "#166534" },
+] as const;
+
+type EvidenceUploadFile = {
+  name: string;
+  size: number;
+  status: "uploading" | "done" | "error";
+};
+
+function EvidenceFileDropzone({
+  uploadKey,
+  maxSizeMb = 10,
+  compact = false,
+  footerLayout = "stacked",
+  ctaText = "Drag Files Here or Click to Upload",
+  fileTypes = EVIDENCE_FILE_TYPES,
+  multipleLabel = "Multiple files accepted",
+  onUploadingChange,
+  onFilesChange,
+}: {
+  uploadKey: string;
+  maxSizeMb?: number;
+  compact?: boolean;
+  footerLayout?: "stacked" | "row";
+  ctaText?: string;
+  fileTypes?: ReadonlyArray<{ label: string; border: string; text: string }>;
+  multipleLabel?: string;
+  onUploadingChange?: (uploading: boolean) => void;
+  onFilesChange?: (files: EvidenceUploadFile[]) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploads, setUploads] = useState<EvidenceUploadFile[]>([]);
+
+  useEffect(() => {
+    onUploadingChange?.(uploads.some((u) => u.status === "uploading"));
+  }, [uploads, onUploadingChange]);
+
+  useEffect(() => {
+    onFilesChange?.(uploads);
+  }, [uploads, onFilesChange]);
+
+  async function handleFiles(files: FileList) {
+    for (const file of Array.from(files)) {
+      if (uploads.some((u) => u.name === file.name)) continue;
+      setUploads((prev) => [
+        ...prev,
+        { name: file.name, size: file.size, status: "uploading" },
+      ]);
+      try {
+        await saveEvidenceFile({
+          fileName: file.name,
+          fileUrl: `/uploads/evidence/${uploadKey}/${file.name}`,
+          fileSize: file.size,
+          mimeType: file.type,
+        });
+        setUploads((prev) =>
+          prev.map((f) => (f.name === file.name ? { ...f, status: "done" } : f))
+        );
+      } catch {
+        setUploads((prev) =>
+          prev.map((f) => (f.name === file.name ? { ...f, status: "error" } : f))
+        );
+      }
+    }
+  }
+
+  const footer = (
+    <>
+      <span className="flex items-center gap-2 text-sm font-semibold text-[#263238]">
+        <Image src="/file-size.svg" alt="" width={24} height={24} aria-hidden />
+        Max {maxSizeMb}MB per file
+      </span>
+      <span className="flex items-center gap-2 text-sm font-semibold text-[#263238]">
+        <Image src="/multiple-file.svg" alt="" width={24} height={24} aria-hidden />
+        {multipleLabel}
+      </span>
+    </>
+  );
+
+  return (
+    <div>
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+        }}
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#7F2A7F] bg-[#7F2A7F1A] px-4 transition hover:border-[#660066] ${
+          compact ? "min-h-[200px] py-6" : "min-h-[260px] px-6 py-10"
+        }`}
+      >
+        <Image src="/upload-icon.svg" alt="" width={50} height={50} aria-hidden />
+        <p className="mt-5 text-center text-sm font-bold text-[#660066]">{ctaText}</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {fileTypes.map((type) => (
+            <span
+              key={type.label}
+              className="rounded bg-white px-2.5 py-1 text-[11px] font-semibold"
+              style={{ border: `1px solid ${type.border}`, color: type.text }}
+            >
+              {type.label}
+            </span>
+          ))}
+        </div>
+        <div
+          className={`mt-5 ${
+            footerLayout === "row"
+              ? "flex flex-wrap items-center justify-center gap-8"
+              : "flex flex-col items-center"
+          }`}
+        >
+          {footerLayout === "row" ? (
+            footer
+          ) : (
+            <div className="flex flex-col items-start gap-2">{footer}</div>
+          )}
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+          className="hidden"
+          onChange={(e) => e.target.files && handleFiles(e.target.files)}
+        />
+      </div>
+      {uploads.length > 0 && (
+        <ul className="mt-3 space-y-1">
+          {uploads.map((f) => (
+            <li key={f.name} className="truncate text-xs text-[#223645]">
+              {f.status === "uploading" ? "⏳" : f.status === "done" ? "✅" : "❌"} {f.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function EvidenceCheckItem({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex gap-2.5 text-[15px] font-medium leading-[28px] text-[#223645]">
+      <svg
+        className="mt-2 h-3.5 w-3.5 shrink-0"
+        viewBox="0 0 12 10"
+        fill="none"
+        aria-hidden
+      >
+        <path
+          d="M1 5L4.5 8.5L11 1.5"
+          stroke="#660066"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function PmiEvidenceDropzone({
+  letter,
+  prefix,
+  boldSuffix,
+  uploadKey,
+  setUploading,
+}: {
+  letter: string;
+  prefix: string;
+  boldSuffix: string;
+  uploadKey: string;
+  setUploading: (uploading: boolean) => void;
+}) {
+  return (
+    <div className="p-4 sm:p-5">
+      <p className="mb-4 text-sm leading-relaxed text-[#223645]">
+        <span className="font-bold text-[#660066]">{letter})</span> {prefix}
+        <strong className="font-bold text-[#223645]">{boldSuffix}</strong>
+      </p>
+      <EvidenceFileDropzone
+        uploadKey={uploadKey}
+        ctaText="Drag Files Here or Click to Upload"
+        fileTypes={PMI_EVIDENCE_FILE_TYPES}
+        footerLayout="stacked"
+        onUploadingChange={setUploading}
+      />
+    </div>
+  );
+}
+
+function EvidenceSectionHeading({
+  number,
+  title,
+}: {
+  number: number;
+  title: string;
+}) {
+  return (
+    <h4 className="text-xl font-bold leading-[34px] text-[#660066] sm:text-[22px]">
+      {number} {title}
+    </h4>
+  );
+}
+
+const EVIDENCE_SUMMARY_CATEGORIES = [
+  {
+    label: "PMI Relationships",
+    uploadCategory: "Full Relationship Evidence",
+    dropzoneKey: "relationship",
+  },
+  {
+    label: "Fee Restrictions",
+    uploadCategory: "Fee level eligibility evidence",
+    dropzoneKey: "fee-level",
+  },
+  {
+    label: "Income Evidence",
+    uploadCategory: "Income Evidence",
+    dropzoneKey: "income",
+  },
+  {
+    label: "Additional",
+    uploadCategory: "Additional Evidence [Optional]",
+    dropzoneKey: "additional",
+  },
+] as const;
+
+function EvidenceUploadSummary({
+  files,
+  onRemoveCategory,
+}: {
+  files: { category: string; name: string; size: number; status: string }[];
+  onRemoveCategory: (uploadCategory: string, dropzoneKey: string) => void;
+}) {
+  return (
+    <section className="mt-10 border-t border-zinc-200 pt-10">
+      <h4 className="text-xl font-bold leading-[34px] text-[#660066] sm:text-[22px]">
+        Upload Summary
+      </h4>
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {EVIDENCE_SUMMARY_CATEGORIES.map((cat) => {
+          const catFiles = files.filter((f) => f.category === cat.uploadCategory);
+          const count = catFiles.length;
+          return (
+            <div
+              key={cat.label}
+              className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-[#fafafa] px-4 py-4"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200">
+                  <Image
+                    src="/file-size.svg"
+                    alt=""
+                    width={24}
+                    height={24}
+                    aria-hidden
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#223645]">{cat.label}</p>
+                  <p className="text-xs text-[#627489]">
+                    {count === 0 ? "No Files Uploaded" : `${count} file${count === 1 ? "" : "s"} uploaded`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="text-sm text-[#627489]">
+                  {count} file{count === 1 ? "" : "s"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveCategory(cat.uploadCategory, cat.dropzoneKey)}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center transition hover:opacity-80"
+                  aria-label={`Remove files from ${cat.label}`}
+                >
+                  <Image src="/file-close.svg" alt="" width={24} height={25} aria-hidden />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-4 text-[15px] font-medium leading-[28px] text-[#627489]">
+        You can add more documents anytime through your member dashboard.
+      </p>
+    </section>
+  );
+}
+
+function EvidenceFaqIcon({ src }: { src: string }) {
+  return (
+    <span
+      className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#660066]"
+      aria-hidden
+    >
+      <Image
+        src={src}
+        alt=""
+        width={20}
+        height={20}
+        className="brightness-0 invert"
+        aria-hidden
+      />
+    </span>
+  );
+}
+
+const EVIDENCE_QUICK_FAQ = [
+  {
+    icon: "/faq-icon1.svg",
+    question: "I never had a written PMI contract – can I still participate?",
+    answer:
+      "Yes. Payment records, emails, and your confirmations are sufficient at this stage",
+  },
+  {
+    icon: "/faq-icon2.svg",
+    question: "What if I can't find documents right now?",
+    answer: "Tick the confirmation boxes and proceed. You can upload later.",
+  },
+  {
+    icon: "/faq-icon3.svg",
+    question: "Is my financial information secure?",
+    answer:
+      "Yes. Encrypted storage, restricted access, and redacted before any court disclosure.",
+  },
+  {
+    icon: "/faq-icon4.svg",
+    question: "I operated through a company – what do I upload?",
+    answer:
+      "Company accounts, your payslips/dividends, and evidence you personally worked with PMIs.",
+  },
+] as const;
+
+function EvidenceQuickFaq() {
+  return (
+    <section className="mt-10">
+      <h4 className="text-xl font-bold leading-[34px] text-[#660066] sm:text-[22px]">
+        Quick FAQ
+      </h4>
+      <ul className="mt-4 divide-y divide-zinc-200 border-t border-zinc-200">
+        {EVIDENCE_QUICK_FAQ.map((item) => (
+          <li key={item.question} className="flex items-start gap-4 py-5">
+            <EvidenceFaqIcon src={item.icon} />
+            <div>
+              <p className="text-[15px] font-bold leading-[28px] text-[#223645]">
+                Q: {item.question}
+              </p>
+              <p className="mt-1 text-[15px] font-medium leading-[28px] text-[#223645]">
+                A: {item.answer}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function EvidenceDisclosure({
+  agreed,
+  onChange,
+}: {
+  agreed: boolean;
+  onChange: (agreed: boolean) => void;
+}) {
+  return (
+    <section className="mt-10">
+      <div className="flex gap-3 rounded-xl border border-[#d4c4d9] bg-[#f3eef6] p-4">
+        <Image
+          src="/shield-icon.svg"
+          alt=""
+          width={50}
+          height={50}
+          className="mt-0.5 shrink-0"
+          aria-hidden
+        />
+        <p className="text-[15px] font-medium leading-[28px] text-[#223645]">
+          As and when the campaign proceeds to formal litigation you will be obliged to preserve
+          your documents and electronic records that relate to the issues in the case and at the
+          relevant time to disclose them through FIPO to the defendants.
+        </p>
+      </div>
+      <div className="mt-5">
+        <FipoCheckbox checked={agreed} onChange={onChange}>
+          I understand my obligations in respect of disclosure and will observe a &lsquo;document
+          hold&rsquo;
+        </FipoCheckbox>
+      </div>
+    </section>
+  );
+}
+
+function EvidenceUploadsPanel({
+  onUploadingChange,
+  disclosureAgreed,
+  onDisclosureChange,
+}: {
+  onUploadingChange: (uploading: boolean) => void;
+  disclosureAgreed: boolean;
+  onDisclosureChange: (agreed: boolean) => void;
+}) {
+  const [zoneUploading, setZoneUploading] = useState<Record<string, boolean>>({});
+  const [summaryFiles, setSummaryFiles] = useState<
+    { category: string; name: string; size: number; status: string }[]
+  >([]);
+  const [dropzoneKeys, setDropzoneKeys] = useState({
+    relationship: 0,
+    "fee-level": 0,
+    income: 0,
+    additional: 0,
+  });
+  const [noFeeEvidence, setNoFeeEvidence] = useState(false);
+  const [incomePerYear, setIncomePerYear] = useState("");
+
+  const setZone = useCallback((key: string, uploading: boolean) => {
+    setZoneUploading((prev) => ({ ...prev, [key]: uploading }));
+  }, []);
+
+  useEffect(() => {
+    onUploadingChange(Object.values(zoneUploading).some(Boolean));
+  }, [zoneUploading, onUploadingChange]);
+
+  const mergeFiles = useCallback(
+    (category: string, files: EvidenceUploadFile[]) => {
+      setSummaryFiles((prev) => {
+        const rest = prev.filter((f) => f.category !== category);
+        return [
+          ...rest,
+          ...files.map((f) => ({
+            category,
+            name: f.name,
+            size: f.size,
+            status: f.status,
+          })),
+        ];
+      });
+    },
+    []
+  );
+
+  const removeCategory = useCallback((uploadCategory: string, dropzoneKey: string) => {
+    setSummaryFiles((prev) => prev.filter((f) => f.category !== uploadCategory));
+    setDropzoneKeys((prev) => ({
+      ...prev,
+      [dropzoneKey]: prev[dropzoneKey as keyof typeof prev] + 1,
+    }));
+  }, []);
+
+  return (
+    <div className="py-2 sm:py-4">
+      <h3 className="text-xl font-bold sm:text-[22px]" style={{ color: PURPLE }}>
+        Supporting evidence upload
+      </h3>
+      <p className="mt-4 text-[16px] font-medium leading-[28px] text-[#223645]">
+        Please upload documentation that supports your claim. Below is a list of documentation
+        we will need from you.
+      </p>
+
+      <div className="mt-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <Image src="/warning-icon.svg" alt="" width={50} height={50} className="shrink-0" aria-hidden />
+        <p className="text-[15px] font-medium leading-[28px] text-amber-900">
+          <strong>IMPORTANT!</strong> Please ensure all files uploaded are clear and readable.
+          If documents are not readable it may delay the processing of your application.
+        </p>
+      </div>
+
+      {/* 1. Full Relationship Evidence */}
+      <section className="mt-10">
+        <EvidenceSectionHeading number={1} title="Full Relationship Evidence" />
+        <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
+          Please upload document showing your relationship with the Claimant. Acceptable
+          documents include:
+        </p>
+        <ul className="mt-4 space-y-1">
+          <EvidenceCheckItem>Signed letter of authority or Power of Attorney (POA)</EvidenceCheckItem>
+          <EvidenceCheckItem>Full birth certificate showing parents&apos; names</EvidenceCheckItem>
+          <EvidenceCheckItem>Marriage or civil partnership certificate</EvidenceCheckItem>
+          <EvidenceCheckItem>Decree absolute (if divorced)</EvidenceCheckItem>
+          <EvidenceCheckItem>Death certificate (if claiming as estate)</EvidenceCheckItem>
+          <EvidenceCheckItem>Court order appointing personal representative</EvidenceCheckItem>
+          <EvidenceCheckItem>Grant of probate or letters of administration</EvidenceCheckItem>
+        </ul>
+        <div className="mt-5">
+          <EvidenceFileDropzone
+            key={`relationship-${dropzoneKeys.relationship}`}
+            uploadKey="relationship"
+            footerLayout="row"
+            multipleLabel="Multiple files supported"
+            onUploadingChange={(u) => setZone("relationship", u)}
+            onFilesChange={(f) => mergeFiles("Full Relationship Evidence", f)}
+          />
+        </div>
+      </section>
+
+      {/* 2. Fee level eligibility evidence */}
+      <section className="mt-10">
+        <EvidenceSectionHeading number={2} title="Fee level eligibility evidence" />
+        <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
+          Documents showing your Fee level eligibility (refer to our guidance for more
+          information). Acceptable documents include:
+        </p>
+        <ul className="mt-4 space-y-1">
+          <EvidenceCheckItem>Evidence of household income (most recent P60)</EvidenceCheckItem>
+          <EvidenceCheckItem>Bank statements (last 3 months)</EvidenceCheckItem>
+          <EvidenceCheckItem>Confirmation of state benefits</EvidenceCheckItem>
+          <EvidenceCheckItem>DWP letter confirming state pension</EvidenceCheckItem>
+          <EvidenceCheckItem>Universal Credit award letter</EvidenceCheckItem>
+          <EvidenceCheckItem>Council Tax Reduction award letter</EvidenceCheckItem>
+        </ul>
+        <div className="mt-5">
+          <EvidenceFileDropzone
+            key={`fee-level-${dropzoneKeys["fee-level"]}`}
+            uploadKey="fee-level"
+            footerLayout="row"
+            multipleLabel="Multiple files supported"
+            onUploadingChange={(u) => setZone("fee-level", u)}
+            onFilesChange={(f) => mergeFiles("Fee level eligibility evidence", f)}
+          />
+        </div>
+        <div className="mt-5">
+          <FipoCheckbox checked={noFeeEvidence} onChange={setNoFeeEvidence}>
+            I do not have any evidence to upload at this stage. I understand that my
+            application will proceed without this evidence and I may be asked to provide it
+            later.
+          </FipoCheckbox>
+        </div>
+      </section>
+
+      {/* 3. Income Evidence */}
+      <section className="mt-10">
+        <EvidenceSectionHeading number={3} title="Income Evidence" />
+        <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
+          Documents showing your income and any benefits that you are currently receiving
+          (e.g. Payslip, P60 etc.). Acceptable documents include:
+        </p>
+        <ul className="mt-4 space-y-1">
+          <EvidenceCheckItem>Recent payslip(s)</EvidenceCheckItem>
+          <EvidenceCheckItem>P60 from employer</EvidenceCheckItem>
+          <EvidenceCheckItem>Self-assessment tax return</EvidenceCheckItem>
+          <EvidenceCheckItem>Bank statements (last 3 months)</EvidenceCheckItem>
+          <EvidenceCheckItem>Benefit award letters</EvidenceCheckItem>
+          <EvidenceCheckItem>Accountant&apos;s letter confirming income</EvidenceCheckItem>
+        </ul>
+
+        <div className="mt-5 flex gap-3 rounded-xl border border-[#d4c4d9] bg-[#f3eef6] p-4">
+          <svg
+            className="mt-0.5 h-6 w-6 shrink-0 text-[#660066]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <p className="text-[15px] font-medium leading-[28px] text-[#223645]">
+            <strong className="font-bold">CONFIDENTIAL:</strong> Financial documents are only
+            used to assess your eligibility for funding and will not be shared with any third
+            parties.
+          </p>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_auto_1fr]">
+          <EvidenceFileDropzone
+            key={`income-${dropzoneKeys.income}`}
+            uploadKey="income"
+            compact
+            footerLayout="row"
+            multipleLabel="Multiple files supported"
+            onUploadingChange={(u) => setZone("income", u)}
+            onFilesChange={(f) => mergeFiles("Income Evidence", f)}
+          />
+          <div className="hidden items-center justify-center text-[#627489] lg:flex" aria-hidden>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border border-[#660066] bg-white px-6 py-8 text-center">
+            <svg
+              className="h-12 w-12 text-[#660066]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+              <path d="M9 14l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="mt-4 text-sm font-bold text-[#660066]">Self-Confirmation</p>
+            <p className="mt-2 text-sm leading-relaxed text-[#223645]">
+              If you are unable to provide the documents listed, you can submit a
+              self-confirmation of your household income using the field below.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 max-w-md">
+          <PracticeLabel>What is your total annual income?</PracticeLabel>
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-[#660066]">
+              £
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={incomePerYear}
+              onChange={(e) => setIncomePerYear(e.target.value)}
+              className={`${practiceFieldCls} pl-7 pr-16`}
+              placeholder="0"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-[#627489]">
+              per year
+            </span>
+          </div>
+        </div>
+        <p className="mt-4 text-[15px] font-medium leading-[28px] text-[#627489]">
+          All evidence provided will be treated as confidential and kept secure.
+        </p>
+      </section>
+
+      {/* 4. Additional Evidence */}
+      <section className="mt-10">
+        <EvidenceSectionHeading number={4} title="Additional Evidence [Optional]" />
+        <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
+          Any other documentation that you feel would be relevant to your application.
+        </p>
+        <div className="mt-5">
+          <EvidenceFileDropzone
+            key={`additional-${dropzoneKeys.additional}`}
+            uploadKey="additional"
+            footerLayout="row"
+            multipleLabel="Multiple files supported"
+            onUploadingChange={(u) => setZone("additional", u)}
+            onFilesChange={(f) => mergeFiles("Additional Evidence [Optional]", f)}
+          />
+        </div>
+      </section>
+
+      <EvidenceUploadSummary files={summaryFiles} onRemoveCategory={removeCategory} />
+      <EvidenceQuickFaq />
+      <EvidenceDisclosure agreed={disclosureAgreed} onChange={onDisclosureChange} />
+    </div>
+  );
+}

@@ -1,8 +1,49 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { brand } from "@/lib/brand";
 
-export function HeaderBrand({ variant = "header" }: { variant?: "header" | "footer" }) {
+export function HeaderBrand({
+  variant = "header",
+}: {
+  variant?: "header" | "footer" | "auth";
+}) {
+  if (variant === "auth") {
+    return (
+      <div className="flex shrink-0 items-center gap-4 sm:gap-5 lg:gap-6">
+        <Link href="/" className="shrink-0">
+          <Image
+            src="/header-fipo-logo.png"
+            alt="FIPO – Federation of Independent Practitioner Organisations"
+            width={124}
+            height={73}
+            className="h-[52px] w-auto sm:h-[65px] lg:h-[73px]"
+            priority
+          />
+        </Link>
+        <div
+          className="hidden h-[73px] w-px shrink-0 sm:block"
+          style={{ backgroundColor: brand.divider }}
+          aria-hidden
+        />
+        <Link
+          href="https://harcusparker.co.uk"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0"
+        >
+          <Image
+            src="/header-harcus-parker-logo.png"
+            alt="Harcus Parker"
+            width={192}
+            height={55}
+            className="h-[36px] w-auto sm:h-[48px] lg:h-[55px]"
+          />
+        </Link>
+      </div>
+    );
+  }
+
   if (variant === "footer") {
     return (
       <div className="flex max-w-full flex-col gap-5">

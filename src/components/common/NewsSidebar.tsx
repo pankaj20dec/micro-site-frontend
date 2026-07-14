@@ -114,7 +114,7 @@ export function NewsSidebar({ featuredPages }: { featuredPages: PageSummary[] })
         <SidebarPanel title="Featured Posts">
           <div>
             {topFeatured.map((page) => (
-              <FeaturedPostItem key={page._id} page={page} />
+              <FeaturedPostItem key={page.id} page={page} />
             ))}
           </div>
         </SidebarPanel>

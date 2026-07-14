@@ -1,14 +1,12 @@
-import type { Metadata } from "next";
 import type { PageSummary } from "@/lib/api";
 import { fetchPublishedPages } from "@/lib/api";
 import { staticNewsArticles } from "@/lib/news-content";
 import { NewsListingPage } from "@/components/common/NewsListingPage";
+import { getPageMetadata } from "@/lib/get-page-metadata";
 
-export const metadata: Metadata = {
-  title: "News | FIPO",
-  description:
-    "Stay up to date with the latest news, updates and insights from FIPO and Harcus Parker.",
-};
+export async function generateMetadata() {
+  return getPageMetadata("news");
+}
 
 export default async function NewsIndex() {
   let apiPages: PageSummary[] = [];
@@ -18,7 +16,6 @@ export default async function NewsIndex() {
     // API unavailable — static articles will fill the page
   }
 
-  // Always show static articles; API articles take priority for matching slugs
   const apiSlugs = new Set(apiPages.map((p) => p.slug));
   const pages: PageSummary[] = [
     ...apiPages,
