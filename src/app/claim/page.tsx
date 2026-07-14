@@ -1,11 +1,9 @@
-import type { Metadata } from "next";
 import { ClaimPage } from "@/components/common/ClaimPage";
+import { getPageMetadata } from "@/lib/get-page-metadata";
 
-export const metadata: Metadata = {
-  title: "The Claim | FIPO",
-  description:
-    "Learn why FIPO is bringing this Claim against Bupa and AXA PPP, what it seeks to achieve, and how to join the action group.",
-};
+export async function generateMetadata() {
+  return getPageMetadata("claim");
+}
 
 export default function ClaimRoute() {
   return <ClaimPage />;

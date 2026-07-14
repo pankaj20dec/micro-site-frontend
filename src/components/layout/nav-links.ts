@@ -5,4 +5,5 @@ export const mainNavLinks = [
   { id: "about", label: "About us", href: "/about" },
   { id: "news", label: "News", href: "/news" },
   { id: "contact", label: "Contact", href: "/contact" },
+  { id: "login", label: "Login", href: "/login" },
 ] as const;

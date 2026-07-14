@@ -9,12 +9,14 @@ import { cn } from "@/lib/cn";
 export function BandTitleBlock({
   as: Tag = "h1",
   children,
+  id,
   ruleVariant = "default",
   ruleTone = "purple",
   className,
 }: {
   as?: "h1" | "h2";
   children: ReactNode;
+  id?: string;
   ruleVariant?: "default" | "lavender";
   /** Rule color: "purple" (default) for light backgrounds, "white" for dark/colored bands. */
   ruleTone?: AboutHeadingRuleTone;
@@ -22,7 +24,9 @@ export function BandTitleBlock({
 }) {
   return (
     <header className={cn("text-center", className)}>
-      <Tag className={bandSectionTitleClassName}>{children}</Tag>
+      <Tag id={id} className={bandSectionTitleClassName}>
+        {children}
+      </Tag>
       <AboutHeadingRule />
     </header>
   );

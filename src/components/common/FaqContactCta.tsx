@@ -1,38 +1,38 @@
 import type { ReactNode } from "react";
 import { Container, Section } from "@/components/ui";
 import { brand } from "@/lib/brand";
-import { faqContact } from "@/lib/faq-content";
+import type { FaqContactContent } from "@/lib/faq-content-defaults";
 
-export function FaqContactCta() {
+type FaqContactCtaProps = {
+  contact: FaqContactContent;
+};
+
+export function FaqContactCta({ contact }: FaqContactCtaProps) {
   return (
     <Section className="bg-white pb-14 sm:pb-20" id="faq-contact">
       <Container max="5xl">
-        <p
-          className="text-[30px] font-bold text-[#22313F]"
-        >
-          {faqContact.eyebrow}
-        </p>
+        <h2 className="text-[30px] font-bold text-[#22313F]">{contact.eyebrow}</h2>
 
         <div className="mt-3 grid gap-4 sm:grid-cols-2 sm:gap-5">
-          <ContactCard title={faqContact.legal.title}>
-            <p>{faqContact.legal.description}</p>
+          <ContactCard title={contact.legal.title}>
+            <p>{contact.legal.description}</p>
             <a
-              href={`mailto:${faqContact.legal.email}`}
+              href={`mailto:${contact.legal.email}`}
               className="inline-block break-all font-semibold underline-offset-2 hover:underline"
               style={{ color: brand.purple }}
             >
-              {faqContact.legal.email}
+              {contact.legal.email}
             </a>
           </ContactCard>
 
-          <ContactCard title={faqContact.admin.title}>
-            <p>{faqContact.admin.description}</p>
+          <ContactCard title={contact.admin.title}>
+            <p>{contact.admin.description}</p>
             <a
-              href={`mailto:${faqContact.admin.email}`}
+              href={`mailto:${contact.admin.email}`}
               className="inline-block break-all font-semibold underline-offset-2 hover:underline"
               style={{ color: brand.purple }}
             >
-              {faqContact.admin.email}
+              {contact.admin.email}
             </a>
           </ContactCard>
         </div>
@@ -42,7 +42,7 @@ export function FaqContactCta() {
           role="note"
         >
           <WarningIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 sm:h-[18px] sm:w-[18px]" />
-          <p>{faqContact.disclaimer}</p>
+          <p>{contact.disclaimer}</p>
         </div>
       </Container>
     </Section>

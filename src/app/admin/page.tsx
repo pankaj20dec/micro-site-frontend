@@ -1,5 +1,5 @@
-import { AdminDashboard } from "./AdminDashboard";
+import { AdminDashboardHome } from "./AdminDashboardHome";
 
 export default function AdminHome() {
-  return <AdminDashboard />;
+  return <AdminDashboardHome />;
 }

@@ -1,11 +1,9 @@
-import type { Metadata } from "next";
 import { ContactPage } from "@/components/common/ContactPage";
+import { getPageMetadata } from "@/lib/get-page-metadata";
 
-export const metadata: Metadata = {
-  title: "Contact | FIPO Fair Pay Action Group",
-  description:
-    "Contact FIPO and the Legal Team at Harcus Parker — address, phone, email, and a direct message form.",
-};
+export async function generateMetadata() {
+  return getPageMetadata("contact");
+}
 
 export default function ContactRoute() {
   return <ContactPage />;

@@ -1,12 +1,24 @@
-import type { Metadata } from "next";
+import { FaqJsonLd } from "@/components/common/FaqJsonLd";
 import { FaqPage } from "@/components/common/FaqPage";
+import { fetchFaqPageContent } from "@/lib/faq-content-api";
+import { getPageMetadata } from "@/lib/get-page-metadata";
+import { fetchSeoSettings } from "@/lib/seo-content-api";
+import { buildFaqJsonLdUrl } from "@/lib/seo-metadata";
 
-export const metadata: Metadata = {
-  title: "FAQs | FIPO Fair Pay Action Group",
-  description:
-    "Answers to common questions about FIPO, the Fair Pay Action Group and joining the legal claim led by Harcus Parker.",
-};
+export async function generateMetadata() {
+  return getPageMetadata("faq");
+}
 
-export default function FaqRoute() {
-  return <FaqPage />;
+export default async function FaqRoute() {
+  const [content, seoSettings] = await Promise.all([
+    fetchFaqPageContent(),
+    fetchSeoSettings(),
+  ]);
+
+  return (
+    <>
+      <FaqJsonLd content={content} pageUrl={buildFaqJsonLdUrl(seoSettings)} />
+      <FaqPage content={content} />
+    </>
+  );
 }

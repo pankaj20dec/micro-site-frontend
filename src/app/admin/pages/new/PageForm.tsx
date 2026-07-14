@@ -38,7 +38,7 @@ export function PageForm() {
         setError(typeof data.error === "string" ? data.error : "Save failed");
         return;
       }
-      router.replace("/admin");
+      router.replace("/admin/pages");
     } catch {
       setError("Network error");
     } finally {
@@ -48,8 +48,8 @@ export function PageForm() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href="/admin" className="text-sm text-teal-700 hover:underline dark:text-teal-400">
-        ← Dashboard
+      <Link href="/admin/pages" className="text-sm text-[#660066] hover:underline">
+        ← Back to pages
       </Link>
       <h1 className="mt-4 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">New page</h1>
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900/50">
