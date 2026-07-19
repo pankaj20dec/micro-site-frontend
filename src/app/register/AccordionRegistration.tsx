@@ -10,7 +10,17 @@ import {
   saveStep,
   requestSaveResume,
   saveEvidenceFile,
+  uploadEvidenceFile,
   capturePaypalOrder,
+  fetchDocusignStatus,
+  pollDocusignStatus,
+  startDocusignSigning,
+  isDocusignComplete,
+  docusignStatusMessage,
+  docusignReturnEventMessage,
+  getPmiEvidenceFiles,
+  type DocusignStatusResponse,
+  type EvidenceFileRecord,
 } from "@/lib/application-api";
 import MembershipPaymentSection, {
   type PaymentSectionHandle,
@@ -253,6 +263,18 @@ export default function AccordionRegistration({ application }: Props) {
   const [pmiUploadingA, setPmiUploadingA] = useState(false);
   const [pmiUploadingB, setPmiUploadingB] = useState(false);
   const pmiUploading = pmiUploadingA || pmiUploadingB;
+  const [pmiSavedFiles, setPmiSavedFiles] = useState<EvidenceFileRecord[]>(() =>
+    getPmiEvidenceFiles(application)
+  );
+  const pmiFilesReady = pmiSavedFiles.length > 0;
+  const [docusignStatus, setDocusignStatus] = useState(
+    str(application?.docusignStatus)
+  );
+  const [docusignStubMode, setDocusignStubMode] = useState(false);
+  const [docusignStubComplete, setDocusignStubComplete] = useState(false);
+  const [pmiDeclarationSigned, setPmiDeclarationSigned] = useState(
+    !!pmiSaved.declarationSigned
+  );
   const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [evidenceDisclosureAgreed, setEvidenceDisclosureAgreed] = useState(false);
 
@@ -348,6 +370,63 @@ export default function AccordionRegistration({ application }: Props) {
       cancelled = true;
     };
   }, [membershipType, router]);
+
+  // DocuSign redirect return — user lands back after embedded signing
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("docusign") !== "complete") return;
+
+    const returnEvent = params.get("event");
+    const shouldPollHard =
+      returnEvent === "signing_complete" || returnEvent === "viewing_complete";
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setActiveTab(1);
+    setLegalOpen("pmi");
+
+    async function verifyReturn() {
+      const attempts = shouldPollHard ? 10 : 5;
+      const data = await pollDocusignStatus({ maxAttempts: attempts, delayMs: 2000 });
+      return { data, status: str(data.status) };
+    }
+
+    verifyReturn()
+      .then(({ data, status }) => {
+        if (cancelled) return;
+        if (status) setDocusignStatus(status);
+        if (isDocusignComplete(status)) {
+          sessionStorage.removeItem("pmi_docusign_pending");
+          setPmiDeclarationSigned(true);
+          setSaveMsg("Documents signed successfully.");
+          setError(null);
+          saveStep({
+            stage1Data: {
+              ...savedStage1,
+              pmi: { ...pmiSaved, declarationSigned: true },
+            },
+          }).catch(() => null);
+        } else {
+          sessionStorage.removeItem("pmi_docusign_pending");
+          const eventMessage = docusignReturnEventMessage(returnEvent);
+          setError(eventMessage || docusignStatusMessage(status, data));
+        }
+        router.replace("/register?form=1", { scroll: false });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not verify signing status.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   function goToTab(index: number, markCurrentDone = true) {
     if (markCurrentDone) {
@@ -710,6 +789,10 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please wait for uploads to finish.");
       return;
     }
+    if (!pmiDeclarationSigned && !docusignStubComplete) {
+      setError("Please sign the PMI relationship documents before continuing.");
+      return;
+    }
     setError(null);
     markLegalDoneAndOpenNext("pmi");
     const pmiData = {
@@ -727,6 +810,7 @@ export default function AccordionRegistration({ application }: Props) {
       llpRegistrationNumber: pmiLlpNumber,
       llpMembers: pmiLlpMembers,
       paidThroughAlternative: pmiPaidAlternative,
+      declarationSigned: pmiDeclarationSigned || docusignStubComplete,
     };
     saveStep({
       stage1Data: { ...savedStage1, pmi: pmiData },
@@ -960,38 +1044,79 @@ export default function AccordionRegistration({ application }: Props) {
                   )}
 
                   {section.id === "pmi" && (
-                    <PmiRelationshipPanel
-                      incomeSource={pmiIncomeSource}
-                      setIncomeSource={setPmiIncomeSource}
-                      paidAxa={pmiPaidAxa}
-                      setPaidAxa={setPmiPaidAxa}
-                      axaYears={pmiAxaYears}
-                      setAxaYears={setPmiAxaYears}
-                      paidBupa={pmiPaidBupa}
-                      setPaidBupa={setPmiPaidBupa}
-                      bupaYears={pmiBupaYears}
-                      setBupaYears={setPmiBupaYears}
-                      paidCompany={pmiPaidCompany}
-                      setPaidCompany={setPmiPaidCompany}
-                      companyName={pmiCompanyName}
-                      setCompanyName={setPmiCompanyName}
-                      companyNumber={pmiCompanyNumber}
-                      setCompanyNumber={setPmiCompanyNumber}
-                      companyDirectors={pmiCompanyDirectors}
-                      setCompanyDirectors={setPmiCompanyDirectors}
-                      paidLlp={pmiPaidLlp}
-                      setPaidLlp={setPmiPaidLlp}
-                      llpName={pmiLlpName}
-                      setLlpName={setPmiLlpName}
-                      llpNumber={pmiLlpNumber}
-                      setLlpNumber={setPmiLlpNumber}
-                      llpMembers={pmiLlpMembers}
-                      setLlpMembers={setPmiLlpMembers}
-                      paidAlternative={pmiPaidAlternative}
-                      setPaidAlternative={setPmiPaidAlternative}
-                      setUploadingA={setPmiUploadingA}
-                      setUploadingB={setPmiUploadingB}
-                    />
+                    <>
+                      <PmiRelationshipPanel
+                        incomeSource={pmiIncomeSource}
+                        setIncomeSource={setPmiIncomeSource}
+                        paidAxa={pmiPaidAxa}
+                        setPaidAxa={setPmiPaidAxa}
+                        axaYears={pmiAxaYears}
+                        setAxaYears={setPmiAxaYears}
+                        paidBupa={pmiPaidBupa}
+                        setPaidBupa={setPmiPaidBupa}
+                        bupaYears={pmiBupaYears}
+                        setBupaYears={setPmiBupaYears}
+                        paidCompany={pmiPaidCompany}
+                        setPaidCompany={setPmiPaidCompany}
+                        companyName={pmiCompanyName}
+                        setCompanyName={setPmiCompanyName}
+                        companyNumber={pmiCompanyNumber}
+                        setCompanyNumber={setPmiCompanyNumber}
+                        companyDirectors={pmiCompanyDirectors}
+                        setCompanyDirectors={setPmiCompanyDirectors}
+                        paidLlp={pmiPaidLlp}
+                        setPaidLlp={setPmiPaidLlp}
+                        llpName={pmiLlpName}
+                        setLlpName={setPmiLlpName}
+                        llpNumber={pmiLlpNumber}
+                        setLlpNumber={setPmiLlpNumber}
+                        llpMembers={pmiLlpMembers}
+                        setLlpMembers={setPmiLlpMembers}
+                        paidAlternative={pmiPaidAlternative}
+                        setPaidAlternative={setPmiPaidAlternative}
+                        setUploadingA={setPmiUploadingA}
+                        setUploadingB={setPmiUploadingB}
+                        savedPmiFiles={pmiSavedFiles}
+                        onPmiFileSaved={(file) =>
+                          setPmiSavedFiles((prev) => {
+                            if (prev.some((existing) => existing.fileUrl === file.fileUrl)) {
+                              return prev;
+                            }
+                            return [...prev, file];
+                          })
+                        }
+                      />
+                      <PmiDocuSignSection
+                        docusignStatus={docusignStatus}
+                        onStatusChange={setDocusignStatus}
+                        declarationSigned={pmiDeclarationSigned}
+                        uploadsInProgress={pmiUploading}
+                        pmiFilesReady={pmiFilesReady}
+                        pmiSavedFileCount={pmiSavedFiles.length}
+                        onDeclarationSigned={() => {
+                          setPmiDeclarationSigned(true);
+                          saveStep({
+                            stage1Data: {
+                              ...savedStage1,
+                              pmi: { ...pmiSaved, declarationSigned: true },
+                            },
+                          }).catch(() => null);
+                        }}
+                        stubMode={docusignStubMode}
+                        onStubModeChange={setDocusignStubMode}
+                        stubComplete={docusignStubComplete}
+                        onStubComplete={() => {
+                          setDocusignStubComplete(true);
+                          setPmiDeclarationSigned(true);
+                          saveStep({
+                            stage1Data: {
+                              ...savedStage1,
+                              pmi: { ...pmiSaved, declarationSigned: true },
+                            },
+                          }).catch(() => null);
+                        }}
+                      />
+                    </>
                   )}
 
                   {section.id === "evidence" && (
@@ -1002,7 +1127,7 @@ export default function AccordionRegistration({ application }: Props) {
                     />
                   )}
 
-                  {error && legalOpen === section.id && (
+                  {error && legalOpen === section.id && section.id !== "pmi" && (
                     <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
                       {error}
                     </p>
@@ -2910,6 +3035,8 @@ function PmiRelationshipPanel(p: {
   setPaidAlternative: (v: boolean) => void;
   setUploadingA: (v: boolean) => void;
   setUploadingB: (v: boolean) => void;
+  savedPmiFiles: EvidenceFileRecord[];
+  onPmiFileSaved: (file: EvidenceFileRecord) => void;
 }) {
   return (
     <div className="py-2 sm:py-4">
@@ -3052,6 +3179,12 @@ function PmiRelationshipPanel(p: {
             boldSuffix="AXA and / or BUPA; and"
             uploadKey="pmi-evidence-a"
             setUploading={p.setUploadingA}
+            initialFiles={p.savedPmiFiles.filter(
+              (file) =>
+                file.uploadKey === "pmi-evidence-a" ||
+                file.fileUrl.includes("/pmi-evidence-a/")
+            )}
+            onFileSaved={p.onPmiFileSaved}
           />
           <PmiEvidenceDropzone
             letter="b"
@@ -3059,10 +3192,340 @@ function PmiRelationshipPanel(p: {
             boldSuffix="AXA and / or BUPA"
             uploadKey="pmi-evidence-b"
             setUploading={p.setUploadingB}
+            initialFiles={p.savedPmiFiles.filter(
+              (file) =>
+                file.uploadKey === "pmi-evidence-b" ||
+                file.fileUrl.includes("/pmi-evidence-b/")
+            )}
+            onFileSaved={p.onPmiFileSaved}
           />
         </div>
       </div>
     </div>
+  );
+}
+
+function PmiDocuSignSection({
+  docusignStatus,
+  onStatusChange,
+  declarationSigned,
+  onDeclarationSigned,
+  uploadsInProgress,
+  pmiFilesReady,
+  pmiSavedFileCount,
+  stubMode,
+  onStubModeChange,
+  stubComplete,
+  onStubComplete,
+}: {
+  docusignStatus: string;
+  onStatusChange: (status: string) => void;
+  declarationSigned: boolean;
+  onDeclarationSigned: () => void;
+  uploadsInProgress: boolean;
+  pmiFilesReady: boolean;
+  pmiSavedFileCount: number;
+  stubMode: boolean;
+  onStubModeChange: (stub: boolean) => void;
+  stubComplete: boolean;
+  onStubComplete: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [consentUrl, setConsentUrl] = useState<string | null>(null);
+  const [statusContext, setStatusContext] = useState<DocusignStatusResponse | null>(null);
+  const signed = declarationSigned || stubComplete;
+
+  function applyStatusData(data: DocusignStatusResponse) {
+    const status = data.status ? String(data.status) : "";
+    if (status) onStatusChange(status);
+    setStatusContext(data);
+    return status;
+  }
+
+  useEffect(() => {
+    if (signed || stubMode) return;
+    if (docusignStatus !== "SENT" && docusignStatus !== "DELIVERED") return;
+
+    let cancelled = false;
+    pollDocusignStatus({ maxAttempts: 3, delayMs: 1500 })
+      .then((data) => {
+        if (cancelled) return;
+        const status = applyStatusData(data);
+        if (isDocusignComplete(status)) {
+          sessionStorage.removeItem("pmi_docusign_pending");
+          onDeclarationSigned();
+          setError(null);
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [signed, stubMode, docusignStatus, onDeclarationSigned, onStatusChange]);
+
+  function getReturnBaseUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("docusign");
+    url.searchParams.delete("paypalReturn");
+    url.searchParams.delete("paypalCancel");
+    url.searchParams.delete("token");
+    if (!url.searchParams.has("form")) {
+      url.searchParams.set("form", "1");
+    }
+    return url.toString();
+  }
+
+  async function requestSigning(forceNew = false) {
+    const returnBaseUrl = getReturnBaseUrl();
+    return startDocusignSigning(returnBaseUrl, { forceNew });
+  }
+
+  async function redirectToSigning(forceNew = false) {
+    const data = await requestSigning(forceNew);
+
+    if (data.docusignStatus) onStatusChange(String(data.docusignStatus));
+
+    if (data.stub) {
+      onStubModeChange(true);
+      return { redirected: false as const, data };
+    }
+
+    if (data.signingUrl) {
+      sessionStorage.setItem("pmi_docusign_pending", "1");
+      window.location.assign(data.signingUrl);
+      return { redirected: true as const, data };
+    }
+
+    return { redirected: false as const, data };
+  }
+
+  async function refreshStatus() {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await pollDocusignStatus({ maxAttempts: 3, delayMs: 1500 });
+      const status = applyStatusData(data);
+      if (isDocusignComplete(status)) {
+        sessionStorage.removeItem("pmi_docusign_pending");
+        onDeclarationSigned();
+        return;
+      }
+      setError(docusignStatusMessage(status, data));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not refresh signing status.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStartSigning(forceNew = false) {
+    if (uploadsInProgress) {
+      setError("Please wait for your evidence uploads to finish before signing.");
+      return;
+    }
+    if (!pmiFilesReady) {
+      setError("Please upload at least one PMI evidence document before signing with DocuSign.");
+      return;
+    }
+    if (!getUserToken()) {
+      setError("Please sign in before starting DocuSign.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setConsentUrl(null);
+
+    try {
+      const result = await redirectToSigning(forceNew);
+      if (result.redirected) return;
+
+      const data = result.data;
+
+      if (data.alreadyCompleted || isDocusignComplete(data.docusignStatus)) {
+        onDeclarationSigned();
+        return;
+      }
+
+      if (data.signingUrl) {
+        sessionStorage.setItem("pmi_docusign_pending", "1");
+        window.location.assign(data.signingUrl);
+        return;
+      }
+
+      setError("No signing URL was returned. Please try again.");
+    } catch (err) {
+      const e = err as Error & { consentUrl?: string; hint?: string };
+      if (e.consentUrl) setConsentUrl(e.consentUrl);
+      const hint = e.hint ? ` ${e.hint}` : "";
+      setError(`${e.message}${hint}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="mt-10 border-t border-zinc-200 pt-10">
+      <h4 className="text-[18px] font-semibold text-[#660066]">
+        Sign your PMI relationship declaration
+      </h4>
+      <p className="mt-3 text-sm leading-relaxed text-[#223645]">
+        After uploading your evidence above, click below to sign with DocuSign. Your
+        uploaded PMI documents ({pmiSavedFileCount} saved) will be attached to the
+        signing envelope.
+      </p>
+
+      {!signed && !stubMode && docusignStatus && (
+        <p className="mt-3 rounded-lg bg-[#f3eef6] px-3 py-2 text-sm text-[#223645]">
+          DocuSign status: <strong>{docusignStatus}</strong>
+          {docusignStatus === "SENT" || docusignStatus === "DELIVERED" ? (
+            <>
+              {" "}
+              — after signing in DocuSign, click <strong>Finish</strong>, then{" "}
+              <strong>Close</strong> (top right) to return here.
+            </>
+          ) : null}
+        </p>
+      )}
+
+      {!pmiFilesReady && !signed && !stubMode && (
+        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Upload at least one PMI evidence file above. Files are saved to secure storage
+          first, then included in DocuSign when you start signing.
+        </p>
+      )}
+
+      {signed && (
+        <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+          Documents signed successfully
+        </div>
+      )}
+
+      {!signed && stubMode && (
+        <div className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+          <strong>Dev mode:</strong> DocuSign is not configured. Click below to simulate
+          a successful signing.
+          <button
+            type="button"
+            onClick={onStubComplete}
+            className="mt-3 block rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            style={{ backgroundColor: PURPLE }}
+          >
+            Simulate signing
+          </button>
+        </div>
+      )}
+
+      {!signed && !stubMode && (
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => handleStartSigning(false)}
+            disabled={loading || uploadsInProgress || !pmiFilesReady}
+            className="rounded-lg px-5 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-60"
+            style={{ backgroundColor: PURPLE }}
+          >
+            {loading
+              ? "Please wait…"
+              : uploadsInProgress
+                ? "Waiting for uploads…"
+              : !pmiFilesReady
+                ? "Upload evidence first"
+              : docusignStatus === "SENT" || docusignStatus === "DELIVERED"
+                ? "Continue signing"
+                : "Sign with DocuSign"}
+          </button>
+          {(docusignStatus === "SENT" ||
+            docusignStatus === "DELIVERED" ||
+            isDocusignComplete(docusignStatus)) && (
+            <button
+              type="button"
+              onClick={refreshStatus}
+              disabled={loading || uploadsInProgress || !pmiFilesReady}
+              className="rounded-lg border border-[#627489] bg-white px-5 py-2.5 text-sm font-semibold text-[#263238] transition hover:bg-zinc-50 disabled:opacity-60"
+            >
+              Refresh status
+            </button>
+          )}
+          {(docusignStatus === "SENT" || docusignStatus === "DELIVERED") && (
+            <button
+              type="button"
+              onClick={() => handleStartSigning(true)}
+              disabled={loading || uploadsInProgress || !pmiFilesReady}
+              className="rounded-lg border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
+            >
+              Restart signing
+            </button>
+          )}
+          {isDocusignComplete(docusignStatus) && !declarationSigned && (
+            <button
+              type="button"
+              onClick={() => handleStartSigning(true)}
+              disabled={loading || uploadsInProgress || !pmiFilesReady}
+              className="rounded-lg border border-[#802B7D] bg-white px-5 py-2.5 text-sm font-semibold text-[#802B7D] transition hover:bg-[#f3eef6] disabled:opacity-60"
+            >
+              Sign again
+            </button>
+          )}
+        </div>
+      )}
+
+      {!signed && !stubMode && statusContext?.multipleSigners && (
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          This envelope has multiple signers from the DocuSign template setup. Click{" "}
+          <strong>Restart signing</strong> to create a fresh envelope for your account only.
+        </p>
+      )}
+
+      {isDocusignComplete(docusignStatus) && !signed && !stubMode && (
+        <div className="mt-5 rounded-xl border border-[#d4c4d9] bg-[#f3eef6] p-4">
+          <p className="text-sm leading-relaxed text-[#223645]">
+            DocuSign shows these documents as already signed. If you completed signing,
+            confirm below to continue this step.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              onDeclarationSigned();
+            }}
+            className="mt-3 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            style={{ backgroundColor: PURPLE }}
+          >
+            Confirm and continue
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p
+          className={`mt-4 rounded-lg px-3 py-2 text-sm ${
+            docusignStatus === "DELIVERED" || docusignStatus === "SENT"
+              ? "bg-amber-50 text-amber-900"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {error}
+        </p>
+      )}
+
+      {consentUrl && (
+        <p className="mt-3 text-sm text-[#223645]">
+          DocuSign admin consent is required.{" "}
+          <a
+            href={consentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold underline"
+            style={{ color: PURPLE }}
+          >
+            Grant consent in DocuSign
+          </a>
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -3133,8 +3596,10 @@ function EvidenceFileDropzone({
   ctaText = "Drag Files Here or Click to Upload",
   fileTypes = EVIDENCE_FILE_TYPES,
   multipleLabel = "Multiple files accepted",
+  initialFiles = [],
   onUploadingChange,
   onFilesChange,
+  onFileSaved,
 }: {
   uploadKey: string;
   maxSizeMb?: number;
@@ -3143,11 +3608,29 @@ function EvidenceFileDropzone({
   ctaText?: string;
   fileTypes?: ReadonlyArray<{ label: string; border: string; text: string }>;
   multipleLabel?: string;
+  initialFiles?: EvidenceFileRecord[];
   onUploadingChange?: (uploading: boolean) => void;
   onFilesChange?: (files: EvidenceUploadFile[]) => void;
+  onFileSaved?: (file: EvidenceFileRecord) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploads, setUploads] = useState<EvidenceUploadFile[]>([]);
+  const [uploads, setUploads] = useState<EvidenceUploadFile[]>(() =>
+    initialFiles.map((file) => ({
+      name: file.fileName,
+      size: file.fileSize ?? 0,
+      status: "done" as const,
+    }))
+  );
+
+  useEffect(() => {
+    setUploads(
+      initialFiles.map((file) => ({
+        name: file.fileName,
+        size: file.fileSize ?? 0,
+        status: "done" as const,
+      }))
+    );
+  }, [initialFiles]);
 
   useEffect(() => {
     onUploadingChange?.(uploads.some((u) => u.status === "uploading"));
@@ -3165,15 +3648,21 @@ function EvidenceFileDropzone({
         { name: file.name, size: file.size, status: "uploading" },
       ]);
       try {
-        await saveEvidenceFile({
-          fileName: file.name,
-          fileUrl: `/uploads/evidence/${uploadKey}/${file.name}`,
-          fileSize: file.size,
-          mimeType: file.type,
-        });
+        const saved = await uploadEvidenceFile(file, uploadKey);
         setUploads((prev) =>
           prev.map((f) => (f.name === file.name ? { ...f, status: "done" } : f))
         );
+        if (saved?.fileUrl) {
+          onFileSaved?.({
+            id: saved.id,
+            fileName: saved.fileName,
+            fileUrl: saved.fileUrl,
+            uploadKey: saved.uploadKey,
+            fileSize: saved.fileSize,
+            mimeType: saved.mimeType,
+            uploadedAt: saved.uploadedAt,
+          });
+        }
       } catch {
         setUploads((prev) =>
           prev.map((f) => (f.name === file.name ? { ...f, status: "error" } : f))
@@ -3284,12 +3773,16 @@ function PmiEvidenceDropzone({
   boldSuffix,
   uploadKey,
   setUploading,
+  initialFiles = [],
+  onFileSaved,
 }: {
   letter: string;
   prefix: string;
   boldSuffix: string;
   uploadKey: string;
   setUploading: (uploading: boolean) => void;
+  initialFiles?: EvidenceFileRecord[];
+  onFileSaved?: (file: EvidenceFileRecord) => void;
 }) {
   return (
     <div className="p-4 sm:p-5">
@@ -3302,7 +3795,9 @@ function PmiEvidenceDropzone({
         ctaText="Drag Files Here or Click to Upload"
         fileTypes={PMI_EVIDENCE_FILE_TYPES}
         footerLayout="stacked"
+        initialFiles={initialFiles}
         onUploadingChange={setUploading}
+        onFileSaved={onFileSaved}
       />
     </div>
   );

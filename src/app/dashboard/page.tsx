@@ -21,7 +21,10 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 const DOCUSIGN_LABELS: Record<string, string> = {
   PENDING: "Not yet signed",
   SENT: "Sent for signature",
+  DELIVERED: "Delivered",
+  COMPLETED: "Signed ✓",
   SIGNED: "Signed ✓",
+  DECLINED: "Declined",
   VOIDED: "Voided",
 };
 
@@ -110,7 +113,7 @@ export default function DashboardPage() {
     { label: "Path selected", done: step >= 3 },
     { label: "Membership & payment", done: step >= 5 },
     { label: "Identity verification", done: step >= 7 },
-    { label: "Legal documents signed", done: docStatus === "SIGNED" },
+    { label: "Legal documents signed", done: docStatus === "SIGNED" || docStatus === "COMPLETED" },
     { label: "PMI details", done: step >= 9 },
     { label: "Evidence uploads", done: step >= 11 },
     { label: "Stage 1 details", done: step >= 13 },
