@@ -88,11 +88,23 @@ export async function createStripeIntent(
   return data;
 }
 
-export async function createPaypalOrder(membershipFee: number) {
+export function getPaymentReturnBaseUrl() {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
+}
+
+export async function createPaypalOrder(
+  membershipFee: number,
+  options?: { returnBaseUrl?: string }
+) {
+  const returnBaseUrl = options?.returnBaseUrl || getPaymentReturnBaseUrl();
   const res = await fetch(`${getApiBase()}/api/payment/paypal/create-order`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ membershipFee }),
+    body: JSON.stringify({
+      membershipFee,
+      ...(returnBaseUrl ? { returnBaseUrl } : {}),
+    }),
   });
   const { data, ok } = await parseApiJson(res);
   if (!ok) throw new Error(data.error ?? "PayPal failed");
