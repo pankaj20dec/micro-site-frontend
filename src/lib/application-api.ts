@@ -149,7 +149,12 @@ export async function uploadEvidenceFile(file: File, uploadKey: string) {
   const uploadHeaders: Record<string, string> = {
     ...(target.headers || {}),
   };
-  if (target.storage === "local" || target.stub) {
+  const usesApiUpload =
+    !String(target.uploadUrl).startsWith("http") ||
+    target.storage === "local" ||
+    target.storage === "spaces" ||
+    target.stub;
+  if (usesApiUpload) {
     const token = getUserToken();
     if (token) uploadHeaders.Authorization = `Bearer ${token}`;
   }
