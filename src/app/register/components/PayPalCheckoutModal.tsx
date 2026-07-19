@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPaypalOrder } from "@/lib/application-api";
+import { createPaypalOrder, getPaymentReturnBaseUrl } from "@/lib/application-api";
 
 const PAYPAL_CURRENCY = process.env.NEXT_PUBLIC_PAYPAL_CURRENCY?.trim() || "GBP";
 
@@ -40,7 +40,7 @@ export function PayPalCheckoutModal({ open, amount, onClose, onError }: Props) {
     setOrderError(null);
     setApproveUrl(null);
 
-    createPaypalOrder(amount)
+    createPaypalOrder(amount, { returnBaseUrl: getPaymentReturnBaseUrl() })
       .then((result) => {
         if (cancelled) return;
         if (result.stub) {
