@@ -97,26 +97,26 @@ export function RegisterDisclaimerModal({
         <div className="overflow-y-auto px-8 pb-6 pt-10 sm:px-12 sm:pt-12">
           <h2
             id="register-disclaimer-title"
-            className="pr-8 text-[28px] font-semibold leading-normal sm:text-[36px]"
+            className="pr-8 text-xl font-bold leading-snug sm:text-2xl"
             style={{ color: REGISTER_PURPLE }}
           >
             {title}
           </h2>
 
-          <div className="mt-6 space-y-5 text-[18px] font-normal leading-[30px] text-[#263238]">
+          <div className="mt-6 space-y-4 text-sm leading-relaxed text-[#263238]">
             {paragraphs.map((text) => (
               <p key={text}>{renderParagraphWithLinks(text)}</p>
             ))}
           </div>
 
           <h3
-            className="mt-8 text-[28px] font-semibold leading-normal sm:text-[36px]"
+            className="mt-8 text-xl font-bold leading-snug sm:text-2xl"
             style={{ color: REGISTER_PURPLE }}
           >
             {competitionLaw.title}
           </h3>
 
-          <div className="mt-5 space-y-5 text-[18px] font-normal leading-[30px] text-[#263238]">
+          <div className="mt-5 space-y-4 text-sm leading-relaxed text-[#263238]">
             {competitionLaw.paragraphs.map((text) => (
               <p key={text}>{text}</p>
             ))}
@@ -128,14 +128,14 @@ export function RegisterDisclaimerModal({
             <button
               type="button"
               onClick={handleExit}
-              className="inline-flex h-[56px] items-center justify-center rounded-lg border border-[#D1D1D1] bg-white px-8 text-[18px] font-semibold uppercase tracking-wide text-[#263238] transition hover:bg-zinc-50"
+              className="inline-flex items-center justify-center rounded-full border border-[#D1D1D1] bg-white px-8 py-3 text-xs font-bold uppercase tracking-widest text-[#263238] transition hover:bg-zinc-50"
             >
               {content.exitButtonLabel}
             </button>
             <button
               type="button"
               onClick={handleConfirm}
-              className="inline-flex h-[56px] items-center justify-center rounded-lg px-8 text-[18px] font-semibold uppercase tracking-wide text-white transition hover:opacity-95"
+              className="inline-flex items-center justify-center rounded-full px-8 py-3 text-xs font-bold uppercase tracking-widest text-white transition hover:opacity-95"
               style={{ backgroundColor: "#7F2A7F" }}
             >
               {content.confirmButtonLabel}

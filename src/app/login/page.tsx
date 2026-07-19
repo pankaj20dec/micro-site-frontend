@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getApiBase } from "@/lib/api";
 import { setUserToken, getUser } from "@/lib/user-auth";
+import { requestGoogleAccessToken } from "@/lib/google-auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  function redirectAfterAuth() {
+    const user = getUser();
+    if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") {
+      router.replace("/admin");
+    } else {
+      // Regular users go straight into the multi-step application form,
+      // which resumes at their saved step and exposes all the steps.
+      router.replace("/register");
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -31,14 +44,7 @@ export default function LoginPage() {
         return;
       }
       setUserToken(data.token);
-      const user = getUser();
-      if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") {
-        router.replace("/admin");
-      } else {
-        // Regular users go straight into the multi-step application form,
-        // which resumes at their saved step and exposes all the steps.
-        router.replace("/register");
-      }
+      redirectAfterAuth();
     } catch {
       setError("Network error — is the API running?");
     } finally {
@@ -46,8 +52,40 @@ export default function LoginPage() {
     }
   }
 
+  async function onGoogleSignIn() {
+    setError(null);
+    setGoogleLoading(true);
+    try {
+      const accessToken = await requestGoogleAccessToken();
+      const res = await fetch(`${getApiBase()}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(
+          typeof data.error === "string" ? data.error : "Google sign-in failed"
+        );
+        return;
+      }
+      setUserToken(data.token);
+      redirectAfterAuth();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Google sign-in failed";
+      if (/cancelled|access_denied|popup/i.test(message)) {
+        setError(null);
+      } else {
+        setError(message);
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-4 py-8">
+    <main className="flex min-h-screen items-center justify-center bg-white px-4 py-8 pb-32">
       {/* Card */}
       <div className="flex w-full max-w-[960px] overflow-hidden rounded-2xl border border-zinc-200 bg-white">
 
@@ -210,15 +248,17 @@ export default function LoginPage() {
           {/* Google button */}
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-300 bg-white py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            onClick={onGoogleSignIn}
+            disabled={loading || googleLoading}
+            className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-300 bg-white py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
           >
-            <svg width="18" height="18" viewBox="0 0 48 48">
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
               <path fill="#4285F4" d="M47.532 24.552c0-1.636-.132-3.208-.388-4.72H24.48v9.027h13.024c-.572 2.968-2.24 5.48-4.748 7.16v5.948h7.68c4.496-4.14 7.096-10.236 7.096-17.416z" />
               <path fill="#34A853" d="M24.48 48c6.48 0 11.924-2.148 15.9-5.832l-7.68-5.948c-2.148 1.44-4.896 2.292-8.22 2.292-6.324 0-11.672-4.272-13.584-10.016H3.024v6.14C6.984 42.884 15.14 48 24.48 48z" />
               <path fill="#FBBC05" d="M10.896 28.496A14.577 14.577 0 0 1 10.08 24c0-1.568.272-3.092.816-4.496V13.364H3.024A23.88 23.88 0 0 0 .48 24c0 3.852.924 7.5 2.544 10.636l7.872-6.14z" />
               <path fill="#EA4335" d="M24.48 9.488c3.564 0 6.76 1.224 9.276 3.636l6.948-6.948C36.4 2.396 30.956 0 24.48 0 15.14 0 6.984 5.116 3.024 13.364l7.872 6.14C12.808 13.76 18.156 9.488 24.48 9.488z" />
             </svg>
-            Google
+            {googleLoading ? "Signing in…" : "Google"}
           </button>
 
           {/* Sign up */}

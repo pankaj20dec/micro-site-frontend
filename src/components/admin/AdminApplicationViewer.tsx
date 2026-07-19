@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { AdminApplication, AdminEvidenceFile } from "@/lib/admin-users-api";
+import { getApiBase } from "@/lib/api";
+import { getAdminToken } from "@/lib/admin-auth";
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -123,8 +126,133 @@ function JsonSection({
   return <DataSection title={title} rows={rows} />;
 }
 
-function EvidenceSection({ files }: { files: AdminEvidenceFile[] }) {
+function DocusignSignedSection({
+  applicationId,
+  envelopeId,
+  docusignStatus,
+  legalSignedAt,
+}: {
+  applicationId: string;
+  envelopeId: string | null;
+  docusignStatus: string | null;
+  legalSignedAt: string | null;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canDownload =
+    !!envelopeId &&
+    !envelopeId.startsWith("stub_") &&
+    String(docusignStatus || "").toUpperCase() === "COMPLETED";
+
+  if (!envelopeId) return null;
+
+  async function openSignedPdf(download = false) {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = getAdminToken();
+      const res = await fetch(
+        `${getApiBase()}/api/admin/applications/${applicationId}/docusign/download`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Could not load signed PDF"
+        );
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (download) {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `fipo-signed-${applicationId.slice(0, 8)}.pdf`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load signed PDF");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
+      <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
+        <h3 className="text-sm font-semibold text-slate-900">Signed DocuSign documents</h3>
+        <p className="mt-0.5 text-xs text-slate-500">
+          Combined PDF from DocuSign (declaration + uploaded PMI evidence)
+        </p>
+      </div>
+      <div className="px-5 py-4">
+        <dl className="grid gap-2 text-sm sm:grid-cols-[minmax(140px,180px)_1fr]">
+          <dt className="font-medium text-slate-500">Envelope ID</dt>
+          <dd className="break-all font-mono text-xs text-slate-700">{envelopeId}</dd>
+          <dt className="font-medium text-slate-500">Signed at</dt>
+          <dd className="text-slate-700">{formatDate(legalSignedAt)}</dd>
+        </dl>
+
+        {canDownload ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => openSignedPdf(false)}
+              disabled={loading}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#660066]/20 bg-[#660066]/5 px-3 py-1.5 text-xs font-medium text-[#660066] transition hover:bg-[#660066]/10 disabled:opacity-60"
+            >
+              {loading ? "Loading…" : "View signed PDF ↗"}
+            </button>
+            <button
+              type="button"
+              onClick={() => openSignedPdf(true)}
+              disabled={loading}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              Download PDF
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">
+            Signed PDF will be available when DocuSign status is{" "}
+            <strong>COMPLETED</strong>
+            {docusignStatus ? ` (currently ${docusignStatus})` : ""}.
+          </p>
+        )}
+
+        {error && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function EvidenceSection({
+  applicationId,
+  files,
+}: {
+  applicationId: string;
+  files: AdminEvidenceFile[];
+}) {
   if (files.length === 0) return null;
+
+  async function openFile(fileId: string, fileName: string) {
+    const token = getAdminToken();
+    const res = await fetch(
+      `${getApiBase()}/api/admin/applications/${applicationId}/evidence/${fileId}/download`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+    if (!res.ok) throw new Error("Could not open file");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
@@ -143,14 +271,13 @@ function EvidenceSection({ files }: { files: AdminEvidenceFile[] }) {
                 {file.mimeType} · {(file.fileSize / 1024).toFixed(1)} KB · {formatDate(file.uploadedAt)}
               </p>
             </div>
-            <a
-              href={file.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => openFile(file.id, file.fileName).catch(() => null)}
               className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#660066] transition hover:border-[#660066]/30 hover:bg-[#660066]/5"
             >
               Open file ↗
-            </a>
+            </button>
           </li>
         ))}
       </ul>
@@ -242,6 +369,11 @@ export function AdminApplicationViewer({
           { label: "Payment provider", value: application.paymentProvider },
           { label: "Payment status", value: application.paymentStatus, badge: true },
           { label: "DocuSign status", value: application.docusignStatus, badge: true },
+          {
+            label: "DocuSign envelope",
+            value: application.docusignEnvelopeId,
+            mono: true,
+          },
           { label: "ID verified at", value: formatDate(application.idVerifiedAt) },
           { label: "Legal signed at", value: formatDate(application.legalSignedAt) },
           { label: "Risk accepted at", value: formatDate(application.riskAcceptedAt) },
@@ -270,7 +402,14 @@ export function AdminApplicationViewer({
 
       <JsonSection title="Stage 2 / claimant data" data={application.stage2Data} />
 
-      <EvidenceSection files={application.evidenceFiles} />
+      <DocusignSignedSection
+        applicationId={application.id}
+        envelopeId={application.docusignEnvelopeId}
+        docusignStatus={application.docusignStatus}
+        legalSignedAt={application.legalSignedAt}
+      />
+
+      <EvidenceSection applicationId={application.id} files={application.evidenceFiles} />
 
       {application.paymentEvents.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">

@@ -81,6 +81,7 @@ export interface AdminEvidenceFile {
   id: string;
   fileName: string;
   fileUrl: string;
+  uploadKey?: string;
   fileSize: number;
   mimeType: string;
   uploadedAt: string;
