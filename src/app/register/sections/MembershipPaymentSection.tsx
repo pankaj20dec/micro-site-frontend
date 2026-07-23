@@ -19,6 +19,7 @@ import {
   capturePaypalOrder,
   createPaypalOrder,
   createStripeIntent,
+  getPaymentReturnBaseUrl,
 } from "@/lib/application-api";
 import { PayPalReviewModal } from "../components/PayPalReviewModal";
 import { PayPalCheckoutModal } from "../components/PayPalCheckoutModal";
@@ -118,9 +119,17 @@ const StripeCheckoutForm = forwardRef<
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: "if_required",
+        confirmParams: {
+          return_url: `${getPaymentReturnBaseUrl()}/register?form=1&stripeReturn=1`,
+        },
       });
       if (error) throw new Error(error.message ?? "Payment failed.");
-      if (paymentIntent?.status === "succeeded") onPaid();
+      if (
+        paymentIntent?.status === "succeeded" ||
+        paymentIntent?.status === "processing"
+      ) {
+        onPaid();
+      }
     },
   }));
 

@@ -12,6 +12,8 @@ import {
   saveEvidenceFile,
   uploadEvidenceFile,
   capturePaypalOrder,
+  pollPaymentStatus,
+  fetchApplication,
   fetchDocusignStatus,
   pollDocusignStatus,
   startDocusignSigning,
@@ -80,6 +82,7 @@ const LEGAL_SECTIONS: { id: LegalSectionId; label: string }[] = [
 const TITLES = ["Dr", "Prof", "Mr", "Mrs", "Ms", "Miss", "Mx"];
 
 const PURPLE = "#802B7D";
+const PMI_FORM_DRAFT_KEY = "pmi_form_draft";
 const CLAIMANT_ACTIVE = "#660066";
 const CLAIMANT_HEADING = "#223645";
 const CLAIMANT_PANEL_BG = "#FBF7FE";
@@ -245,7 +248,7 @@ export default function AccordionRegistration({ application }: Props) {
     str(savedStage1.pmiPercentage) || "50"
   );
 
-  const pmiSaved = (application?.pmi as Record<string, unknown>) ?? {};
+  const pmiSaved = (savedStage1.pmi as Record<string, unknown>) ?? {};
   const [pmiIncomeSource, setPmiIncomeSource] = useState(str(pmiSaved.incomeSource));
   const [pmiPaidAxa, setPmiPaidAxa] = useState(!!pmiSaved.paidDirectlyAxa);
   const [pmiAxaYears, setPmiAxaYears] = useState(str(pmiSaved.axaYears));
@@ -278,6 +281,71 @@ export default function AccordionRegistration({ application }: Props) {
   const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [evidenceDisclosureAgreed, setEvidenceDisclosureAgreed] = useState(false);
 
+  function applyPmiFromRecord(pmi: Record<string, unknown>) {
+    setPmiIncomeSource(str(pmi.incomeSource));
+    setPmiPaidAxa(!!pmi.paidDirectlyAxa);
+    setPmiAxaYears(str(pmi.axaYears));
+    setPmiPaidBupa(!!pmi.paidDirectlyBupa);
+    setPmiBupaYears(str(pmi.bupaYears));
+    setPmiPaidCompany(!!pmi.paidThroughCompany);
+    setPmiCompanyName(str(pmi.companyName));
+    setPmiCompanyNumber(str(pmi.companyNumber));
+    setPmiCompanyDirectors(str(pmi.companyDirectors));
+    setPmiPaidLlp(!!pmi.paidThroughLlp);
+    setPmiLlpName(str(pmi.llpName));
+    setPmiLlpNumber(str(pmi.llpRegistrationNumber));
+    setPmiLlpMembers(str(pmi.llpMembers));
+    setPmiPaidAlternative(!!pmi.paidThroughAlternative);
+    if (pmi.declarationSigned) setPmiDeclarationSigned(true);
+  }
+
+  function buildPmiPayload(declarationSigned: boolean) {
+    return {
+      incomeSource: pmiIncomeSource,
+      paidDirectlyAxa: pmiPaidAxa,
+      axaYears: pmiAxaYears,
+      paidDirectlyBupa: pmiPaidBupa,
+      bupaYears: pmiBupaYears,
+      paidThroughCompany: pmiPaidCompany,
+      companyName: pmiCompanyName,
+      companyNumber: pmiCompanyNumber,
+      companyDirectors: pmiCompanyDirectors,
+      paidThroughLlp: pmiPaidLlp,
+      llpName: pmiLlpName,
+      llpRegistrationNumber: pmiLlpNumber,
+      llpMembers: pmiLlpMembers,
+      paidThroughAlternative: pmiPaidAlternative,
+      declarationSigned,
+    };
+  }
+
+  const persistPmiDraft = useCallback(
+    async (declarationSigned = false) => {
+      const pmiData = buildPmiPayload(declarationSigned);
+      sessionStorage.setItem(PMI_FORM_DRAFT_KEY, JSON.stringify(pmiData));
+      await saveStep({
+        stage1Data: { ...savedStage1, pmi: pmiData },
+      });
+    },
+    [
+      savedStage1,
+      pmiIncomeSource,
+      pmiPaidAxa,
+      pmiAxaYears,
+      pmiPaidBupa,
+      pmiBupaYears,
+      pmiPaidCompany,
+      pmiCompanyName,
+      pmiCompanyNumber,
+      pmiCompanyDirectors,
+      pmiPaidLlp,
+      pmiLlpName,
+      pmiLlpNumber,
+      pmiLlpMembers,
+      pmiPaidAlternative,
+    ]
+  );
+
   // ── Claimant phase ──
 
   // ── Top-level journey tabs ──
@@ -298,6 +366,15 @@ export default function AccordionRegistration({ application }: Props) {
     const user = getUser();
     if (user?.email && !str(savedStage1.email)) {
       setEmail(user.email);
+    }
+
+    const draftRaw = sessionStorage.getItem(PMI_FORM_DRAFT_KEY);
+    if (!draftRaw) return;
+    try {
+      const draft = JSON.parse(draftRaw) as Record<string, unknown>;
+      if (draft.incomeSource) applyPmiFromRecord(draft);
+    } catch {
+      sessionStorage.removeItem(PMI_FORM_DRAFT_KEY);
     }
   }, []);
 
@@ -371,6 +448,74 @@ export default function AccordionRegistration({ application }: Props) {
     };
   }, [membershipType, router]);
 
+  // Complete Stripe redirect checkout after 3DS / bank authentication
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("stripeReturn") !== "1") return;
+
+    const clientSecret = params.get("payment_intent_client_secret");
+    if (!clientSecret) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setOpen("payment");
+    setPayMethod("stripe");
+
+    const fee = membershipType === "ORGANISATION" ? 500 : 250;
+    const redirectStatus = params.get("redirect_status");
+
+    async function completeStripeReturn() {
+      const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      if (!publishableKey) {
+        throw new Error("Stripe is not configured.");
+      }
+
+      const { loadStripe } = await import("@stripe/stripe-js");
+      const stripe = await loadStripe(publishableKey);
+      if (!stripe) throw new Error("Could not load Stripe.");
+
+      const { paymentIntent, error } = await stripe.retrievePaymentIntent(clientSecret);
+      if (error) throw new Error(error.message ?? "Could not verify payment.");
+      if (paymentIntent?.status !== "succeeded" && paymentIntent?.status !== "processing") {
+        throw new Error(
+          redirectStatus === "failed"
+            ? "Card payment failed. Please try again."
+            : "Payment was not completed. Please try again."
+        );
+      }
+
+      const confirmed = await pollPaymentStatus();
+      if (!confirmed) {
+        throw new Error(
+          "Payment received but confirmation is still processing. Wait a few seconds, then click Continue again. For local testing, run: stripe listen --forward-to localhost:5000/api/payment/stripe/webhook"
+        );
+      }
+
+      setPaymentPaid(true);
+      await saveStep({ membershipType, membershipFee: fee, currentStep: 3 });
+      setDone((prev) => new Set(prev).add("payment"));
+      setOpen("confirmation");
+      router.replace("/register?form=1", { scroll: false });
+    }
+
+    completeStripeReturn()
+      .catch((err) => {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Stripe payment could not be completed."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [membershipType, router]);
+
   // DocuSign redirect return — user lands back after embedded signing
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -393,7 +538,7 @@ export default function AccordionRegistration({ application }: Props) {
     }
 
     verifyReturn()
-      .then(({ data, status }) => {
+      .then(async ({ data, status }) => {
         if (cancelled) return;
         if (status) setDocusignStatus(status);
         if (isDocusignComplete(status)) {
@@ -401,14 +546,39 @@ export default function AccordionRegistration({ application }: Props) {
           setPmiDeclarationSigned(true);
           setSaveMsg("Documents signed successfully.");
           setError(null);
-          saveStep({
+
+          const app = await fetchApplication();
+          if (cancelled) return;
+          const stage1 = ((app?.stage1Data ?? savedStage1) as Record<string, unknown>) ?? {};
+          const draftRaw = sessionStorage.getItem(PMI_FORM_DRAFT_KEY);
+          let pmi = (stage1.pmi as Record<string, unknown>) ?? {};
+
+          if (draftRaw) {
+            try {
+              pmi = { ...pmi, ...(JSON.parse(draftRaw) as Record<string, unknown>) };
+            } catch {
+              // ignore invalid draft
+            }
+          }
+
+          applyPmiFromRecord({ ...pmi, declarationSigned: true });
+          await saveStep({
             stage1Data: {
-              ...savedStage1,
-              pmi: { ...pmiSaved, declarationSigned: true },
+              ...stage1,
+              pmi: { ...pmi, declarationSigned: true },
             },
           }).catch(() => null);
+          sessionStorage.removeItem(PMI_FORM_DRAFT_KEY);
         } else {
           sessionStorage.removeItem("pmi_docusign_pending");
+          const draftRaw = sessionStorage.getItem(PMI_FORM_DRAFT_KEY);
+          if (draftRaw) {
+            try {
+              applyPmiFromRecord(JSON.parse(draftRaw) as Record<string, unknown>);
+            } catch {
+              // ignore invalid draft
+            }
+          }
           const eventMessage = docusignReturnEventMessage(returnEvent);
           setError(eventMessage || docusignStatusMessage(status, data));
         }
@@ -635,6 +805,16 @@ export default function AccordionRegistration({ application }: Props) {
       if (!paymentPaid) {
         await paymentRef.current?.processPayment();
       }
+
+      if (payMethod === "stripe" && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+        const confirmed = await pollPaymentStatus();
+        if (!confirmed) {
+          throw new Error(
+            "Waiting for payment confirmation. For local testing, run: stripe listen --forward-to localhost:5000/api/payment/stripe/webhook"
+          );
+        }
+      }
+
       await saveStep({ membershipType, membershipFee: fee, currentStep: 3 });
       markDoneAndOpenNext("payment");
     } catch (err) {
@@ -795,23 +975,8 @@ export default function AccordionRegistration({ application }: Props) {
     }
     setError(null);
     markLegalDoneAndOpenNext("pmi");
-    const pmiData = {
-      incomeSource: pmiIncomeSource,
-      paidDirectlyAxa: pmiPaidAxa,
-      axaYears: pmiAxaYears,
-      paidDirectlyBupa: pmiPaidBupa,
-      bupaYears: pmiBupaYears,
-      paidThroughCompany: pmiPaidCompany,
-      companyName: pmiCompanyName,
-      companyNumber: pmiCompanyNumber,
-      companyDirectors: pmiCompanyDirectors,
-      paidThroughLlp: pmiPaidLlp,
-      llpName: pmiLlpName,
-      llpRegistrationNumber: pmiLlpNumber,
-      llpMembers: pmiLlpMembers,
-      paidThroughAlternative: pmiPaidAlternative,
-      declarationSigned: pmiDeclarationSigned || docusignStubComplete,
-    };
+    const pmiData = buildPmiPayload(pmiDeclarationSigned || docusignStubComplete);
+    sessionStorage.removeItem(PMI_FORM_DRAFT_KEY);
     saveStep({
       stage1Data: { ...savedStage1, pmi: pmiData },
     }).catch(() => null);
@@ -1093,14 +1258,10 @@ export default function AccordionRegistration({ application }: Props) {
                         uploadsInProgress={pmiUploading}
                         pmiFilesReady={pmiFilesReady}
                         pmiSavedFileCount={pmiSavedFiles.length}
+                        onBeforeSign={persistPmiDraft}
                         onDeclarationSigned={() => {
                           setPmiDeclarationSigned(true);
-                          saveStep({
-                            stage1Data: {
-                              ...savedStage1,
-                              pmi: { ...pmiSaved, declarationSigned: true },
-                            },
-                          }).catch(() => null);
+                          persistPmiDraft(true).catch(() => null);
                         }}
                         stubMode={docusignStubMode}
                         onStubModeChange={setDocusignStubMode}
@@ -1108,12 +1269,7 @@ export default function AccordionRegistration({ application }: Props) {
                         onStubComplete={() => {
                           setDocusignStubComplete(true);
                           setPmiDeclarationSigned(true);
-                          saveStep({
-                            stage1Data: {
-                              ...savedStage1,
-                              pmi: { ...pmiSaved, declarationSigned: true },
-                            },
-                          }).catch(() => null);
+                          persistPmiDraft(true).catch(() => null);
                         }}
                       />
                     </>
@@ -3210,6 +3366,7 @@ function PmiDocuSignSection({
   onStatusChange,
   declarationSigned,
   onDeclarationSigned,
+  onBeforeSign,
   uploadsInProgress,
   pmiFilesReady,
   pmiSavedFileCount,
@@ -3222,6 +3379,7 @@ function PmiDocuSignSection({
   onStatusChange: (status: string) => void;
   declarationSigned: boolean;
   onDeclarationSigned: () => void;
+  onBeforeSign?: () => Promise<void>;
   uploadsInProgress: boolean;
   pmiFilesReady: boolean;
   pmiSavedFileCount: number;
@@ -3339,6 +3497,7 @@ function PmiDocuSignSection({
     setConsentUrl(null);
 
     try {
+      await onBeforeSign?.();
       const result = await redirectToSigning(forceNew);
       if (result.redirected) return;
 
@@ -3621,24 +3780,23 @@ function EvidenceFileDropzone({
       status: "done" as const,
     }))
   );
+  const onUploadingChangeRef = useRef(onUploadingChange);
+  const onFilesChangeRef = useRef(onFilesChange);
+  onUploadingChangeRef.current = onUploadingChange;
+  onFilesChangeRef.current = onFilesChange;
+
+  const isUploading = uploads.some((upload) => upload.status === "uploading");
+  const uploadsNotifyKey = uploads
+    .map((upload) => `${upload.name}:${upload.size}:${upload.status}`)
+    .join("|");
 
   useEffect(() => {
-    setUploads(
-      initialFiles.map((file) => ({
-        name: file.fileName,
-        size: file.fileSize ?? 0,
-        status: "done" as const,
-      }))
-    );
-  }, [initialFiles]);
+    onUploadingChangeRef.current?.(isUploading);
+  }, [isUploading]);
 
   useEffect(() => {
-    onUploadingChange?.(uploads.some((u) => u.status === "uploading"));
-  }, [uploads, onUploadingChange]);
-
-  useEffect(() => {
-    onFilesChange?.(uploads);
-  }, [uploads, onFilesChange]);
+    onFilesChangeRef.current?.(uploads);
+  }, [uploadsNotifyKey]);
 
   async function handleFiles(files: FileList) {
     for (const file of Array.from(files)) {
@@ -3784,6 +3942,10 @@ function PmiEvidenceDropzone({
   initialFiles?: EvidenceFileRecord[];
   onFileSaved?: (file: EvidenceFileRecord) => void;
 }) {
+  const initialFilesKey = initialFiles
+    .map((file) => `${file.fileUrl ?? file.id ?? file.fileName}:${file.fileSize ?? 0}`)
+    .join("|");
+
   return (
     <div className="p-4 sm:p-5">
       <p className="mb-4 text-sm leading-relaxed text-[#223645]">
@@ -3791,6 +3953,7 @@ function PmiEvidenceDropzone({
         <strong className="font-bold text-[#223645]">{boldSuffix}</strong>
       </p>
       <EvidenceFileDropzone
+        key={`${uploadKey}-${initialFilesKey || "empty"}`}
         uploadKey={uploadKey}
         ctaText="Drag Files Here or Click to Upload"
         fileTypes={PMI_EVIDENCE_FILE_TYPES}
@@ -4028,7 +4191,10 @@ function EvidenceUploadsPanel({
   const [incomePerYear, setIncomePerYear] = useState("");
 
   const setZone = useCallback((key: string, uploading: boolean) => {
-    setZoneUploading((prev) => ({ ...prev, [key]: uploading }));
+    setZoneUploading((prev) => {
+      if (prev[key] === uploading) return prev;
+      return { ...prev, [key]: uploading };
+    });
   }, []);
 
   useEffect(() => {
