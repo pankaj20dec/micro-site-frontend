@@ -455,6 +455,7 @@ export default function AccordionRegistration({ application }: Props) {
 
     const clientSecret = params.get("payment_intent_client_secret");
     if (!clientSecret) return;
+    const paymentIntentClientSecret = clientSecret;
 
     let cancelled = false;
     setLoading(true);
@@ -475,7 +476,8 @@ export default function AccordionRegistration({ application }: Props) {
       const stripe = await loadStripe(publishableKey);
       if (!stripe) throw new Error("Could not load Stripe.");
 
-      const { paymentIntent, error } = await stripe.retrievePaymentIntent(clientSecret);
+      const { paymentIntent, error } =
+        await stripe.retrievePaymentIntent(paymentIntentClientSecret);
       if (error) throw new Error(error.message ?? "Could not verify payment.");
       if (paymentIntent?.status !== "succeeded" && paymentIntent?.status !== "processing") {
         throw new Error(
