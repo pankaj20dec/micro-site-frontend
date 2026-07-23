@@ -71,6 +71,24 @@ export async function requestSaveResume() {
   return data;
 }
 
+export async function pollPaymentStatus(options?: {
+  maxAttempts?: number;
+  delayMs?: number;
+}) {
+  const maxAttempts = options?.maxAttempts ?? 15;
+  const delayMs = options?.delayMs ?? 1000;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const application = await fetchApplication();
+    if (application?.paymentStatus === "PAID") return true;
+    if (attempt < maxAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return false;
+}
+
 export async function createStripeIntent(
   membershipFee: number,
   options?: { confirmStub?: boolean }
@@ -83,8 +101,20 @@ export async function createStripeIntent(
       confirmStub: options?.confirmStub ?? false,
     }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Payment failed");
+  const { data, ok } = await parseApiJson(res);
+  if (res.status === 401) {
+    clearUserToken();
+    throw new Error(
+      typeof data.error === "string"
+        ? data.error
+        : "Session expired. Please register again."
+    );
+  }
+  if (!ok) {
+    throw new Error(
+      typeof data.error === "string" ? data.error : "Could not start Stripe payment."
+    );
+  }
   return data;
 }
 
