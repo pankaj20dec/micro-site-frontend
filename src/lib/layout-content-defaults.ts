@@ -39,7 +39,7 @@ export type SiteLayoutContent = {
 
 export const defaultSiteHeader: SiteHeaderContent = {
   ctaLabel: "Join the Claim",
-  ctaHref: "/#join",
+  ctaHref: "/login",
   navLinks: [
     { label: "The Claim", href: "/" },
     { label: "Explanations", href: "/explanations" },

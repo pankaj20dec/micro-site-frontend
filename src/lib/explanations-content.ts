@@ -440,8 +440,7 @@ export const explanationsDocuments = {
     },
   ],
   footnote: {
-    title:
-      "Fipo’s Engagement With Harcus Parker and Counsel, Including the DBA It Will Execute on Your Behalf With Your Approval",
+    title: "FIPO’s engagement with Harcus Parker and Counsel, including the DBA it will execute on your behalf with your approval.",
     body: "This sets out the terms on which Harcus Parker will act for FIPO in the prosecution of your claim. It will enter the agreement with Harcus Parker for you and as you. You should read the entire document, but note:",
   },
   readMore: {
@@ -656,5 +655,5 @@ export const explanationsSummaryRisk = {
 
 export const explanationsCta = {
   label: "Join the Claim",
-  href: "/#join",
+  href: "/login",
 } as const;

@@ -79,7 +79,7 @@ export function StepsSection() {
         </ol>
 
         <div className="mt-10 flex justify-center sm:mt-12">
-          <ButtonLink href="#fees" variant="primary" size="lg" className="rounded-full px-10 sm:px-14">
+          <ButtonLink href="/login" variant="primary" size="lg" className="rounded-full px-10 sm:px-14">
             Join the Claim
           </ButtonLink>
         </div>

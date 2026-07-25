@@ -132,7 +132,7 @@ export function ClaimSection() {
         </p>
 
         <div className="mt-10 flex justify-center sm:mt-12">
-          <ButtonLink href="#join" variant="inverse" size="lg" className="rounded-full px-12 sm:px-14 font-semibold">
+          <ButtonLink href="/login" variant="inverse" size="lg" className="rounded-full px-12 sm:px-14 font-semibold">
             Join the Claim
           </ButtonLink>
         </div>
