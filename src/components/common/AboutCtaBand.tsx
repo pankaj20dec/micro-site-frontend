@@ -12,9 +12,9 @@ export type AboutCtaBandProps = {
 export function AboutCtaBand({
   title = "Ready to join the Fair Pay Action Group?",
   description = "Register your interest, review the claim process, and take the next step with coordinated legal representation.",
-  primaryHref = "/#join",
+  primaryHref = "/login",
   primaryLabel = "Join the claim",
-  secondaryHref = "/#contact",
+  secondaryHref = "/contact",
   secondaryLabel = "Contact us",
 }: AboutCtaBandProps) {
   return (

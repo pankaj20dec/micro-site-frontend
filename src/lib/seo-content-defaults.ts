@@ -48,7 +48,7 @@ export const SEO_PAGE_LABELS: Record<SeoPageKey, string> = {
 
 const defaultPageSeo: Record<SeoPageKey, PageSeoFields> = {
   home: {
-    title: "FIPO | Marcus Parker",
+    title: "FIPO | Fair Pay Action Group",
     description:
       "Fair pay and professional freedom for medical professionals — join the FIPO action group.",
     noIndex: false,

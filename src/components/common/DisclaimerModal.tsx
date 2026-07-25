@@ -81,7 +81,7 @@ export function DisclaimerModal() {
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden />
 
-      <div className="relative z-10 w-full max-w-[610px] rounded-2xl bg-white p-4 text-center shadow-2xl sm:p-10">
+      <div className="relative z-10 w-full max-w-[620px] rounded-2xl bg-white p-4 text-center shadow-2xl sm:p-9">
         <h2
           id="disclaimer-title"
           className="font-top-heading text-xl font-bold leading-snug sm:text-2xl"

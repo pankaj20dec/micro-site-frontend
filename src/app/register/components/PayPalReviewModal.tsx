@@ -90,7 +90,7 @@ export function PayPalReviewModal({
           </h2>
 
           <div className="mt-5 flex items-center justify-between text-sm text-zinc-700">
-            <span>Pay to Fipo</span>
+            <span>Pay to FIPO</span>
             <span className="font-medium">{formatted}</span>
           </div>
 

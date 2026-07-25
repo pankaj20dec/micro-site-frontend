@@ -119,9 +119,9 @@ export function ActionJoinSection() {
             </div>
 
             <div className="mt-10 flex justify-center">
-              <ButtonLink href="#fees" variant="primary" size="lg" className="rounded-full px-10 sm:px-14">
+              <ButtonLink href="/login" variant="primary" size="lg" className="rounded-full px-10 sm:px-14">
                 Join the claim
-              </ButtonLink>
+              </ButtonLink> 
             </div>
 
             <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed">
