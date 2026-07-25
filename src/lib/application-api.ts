@@ -89,6 +89,38 @@ export async function pollPaymentStatus(options?: {
   return false;
 }
 
+export async function confirmStripePayment(paymentIntentId?: string) {
+  const res = await fetch(`${getApiBase()}/api/payment/stripe/confirm`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(
+      paymentIntentId ? { paymentIntentId } : {}
+    ),
+  });
+  const { data, ok } = await parseApiJson(res);
+  if (res.status === 401) {
+    clearUserToken();
+    throw new Error(
+      typeof data.error === "string"
+        ? data.error
+        : "Session expired. Please register again."
+    );
+  }
+  if (!ok) {
+    if (res.status === 404) {
+      throw new Error(
+        "Payment confirmation is unavailable on the server. Redeploy the latest backend, then try again."
+      );
+    }
+    throw new Error(
+      typeof data.error === "string"
+        ? data.error
+        : "Could not confirm Stripe payment."
+    );
+  }
+  return data;
+}
+
 export async function createStripeIntent(
   membershipFee: number,
   options?: { confirmStub?: boolean }

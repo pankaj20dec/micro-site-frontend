@@ -13,6 +13,7 @@ import {
   uploadEvidenceFile,
   capturePaypalOrder,
   pollPaymentStatus,
+  confirmStripePayment,
   fetchApplication,
   fetchDocusignStatus,
   pollDocusignStatus,
@@ -489,9 +490,13 @@ export default function AccordionRegistration({ application }: Props) {
 
       const confirmed = await pollPaymentStatus();
       if (!confirmed) {
-        throw new Error(
-          "Payment received but confirmation is still processing. Wait a few seconds, then click Continue again. For local testing, run: stripe listen --forward-to localhost:5000/api/payment/stripe/webhook"
-        );
+        await confirmStripePayment(paymentIntent?.id);
+        const confirmedAfterSync = await pollPaymentStatus({ maxAttempts: 5 });
+        if (!confirmedAfterSync) {
+          throw new Error(
+            "Payment received but confirmation is still processing. Wait a few seconds, then click Continue again."
+          );
+        }
       }
 
       setPaymentPaid(true);
@@ -804,15 +809,20 @@ export default function AccordionRegistration({ application }: Props) {
     const fee = membershipType === "ORGANISATION" ? 500 : 250;
     setLoading(true);
     try {
+      let stripePaymentIntentId: string | undefined;
       if (!paymentPaid) {
-        await paymentRef.current?.processPayment();
+        const paymentResult = await paymentRef.current?.processPayment();
+        stripePaymentIntentId = paymentResult?.paymentIntentId;
       }
 
       if (payMethod === "stripe" && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-        const confirmed = await pollPaymentStatus();
+        if (!(await pollPaymentStatus({ maxAttempts: 1 }))) {
+          await confirmStripePayment(stripePaymentIntentId);
+        }
+        const confirmed = await pollPaymentStatus({ maxAttempts: 8, delayMs: 1500 });
         if (!confirmed) {
           throw new Error(
-            "Waiting for payment confirmation. For local testing, run: stripe listen --forward-to localhost:5000/api/payment/stripe/webhook"
+            "Your card payment was received but could not be confirmed yet. Wait a few seconds, then click Continue again."
           );
         }
       }
