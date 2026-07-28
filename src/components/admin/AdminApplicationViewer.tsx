@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { AdminApplication, AdminEvidenceFile } from "@/lib/admin-users-api";
+import { evidenceUploadLabel, isWitnessEvidenceUploadKey } from "@/lib/application-api";
 import { getApiBase } from "@/lib/api";
 import { getAdminToken } from "@/lib/admin-auth";
 
@@ -232,16 +233,14 @@ function DocusignSignedSection({
   );
 }
 
-function EvidenceSection({
+function AdminEvidenceFileList({
   applicationId,
   files,
 }: {
   applicationId: string;
   files: AdminEvidenceFile[];
 }) {
-  if (files.length === 0) return null;
-
-  async function openFile(fileId: string, fileName: string) {
+  async function openFile(fileId: string) {
     const token = getAdminToken();
     const res = await fetch(
       `${getApiBase()}/api/admin/applications/${applicationId}/evidence/${fileId}/download`,
@@ -255,6 +254,61 @@ function EvidenceSection({
   }
 
   return (
+    <ul className="divide-y divide-slate-100">
+      {files.map((file) => (
+        <li key={file.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+          <div className="min-w-0">
+            <p className="font-medium text-slate-900">{file.fileName}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {evidenceUploadLabel(file.uploadKey)} · {file.mimeType} ·{" "}
+              {(file.fileSize / 1024).toFixed(1)} KB · {formatDate(file.uploadedAt)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openFile(file.id).catch(() => null)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#660066] transition hover:border-[#660066]/30 hover:bg-[#660066]/5"
+          >
+            Open file ↗
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function WitnessProofsSection({
+  applicationId,
+  files,
+}: {
+  applicationId: string;
+  files: AdminEvidenceFile[];
+}) {
+  if (files.length === 0) return null;
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
+      <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
+        <h3 className="text-sm font-semibold text-slate-900">Witness Proofs</h3>
+        <p className="mt-0.5 text-xs text-slate-500">
+          {files.length} witness document{files.length === 1 ? "" : "s"} uploaded
+        </p>
+      </div>
+      <AdminEvidenceFileList applicationId={applicationId} files={files} />
+    </section>
+  );
+}
+
+function EvidenceSection({
+  applicationId,
+  files,
+}: {
+  applicationId: string;
+  files: AdminEvidenceFile[];
+}) {
+  if (files.length === 0) return null;
+
+  return (
     <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
       <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
         <h3 className="text-sm font-semibold text-slate-900">
@@ -262,25 +316,7 @@ function EvidenceSection({
         </h3>
         <p className="mt-0.5 text-xs text-slate-500">{files.length} file{files.length === 1 ? "" : "s"} attached</p>
       </div>
-      <ul className="divide-y divide-slate-100">
-        {files.map((file) => (
-          <li key={file.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
-            <div className="min-w-0">
-              <p className="font-medium text-slate-900">{file.fileName}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                {file.mimeType} · {(file.fileSize / 1024).toFixed(1)} KB · {formatDate(file.uploadedAt)}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => openFile(file.id, file.fileName).catch(() => null)}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#660066] transition hover:border-[#660066]/30 hover:bg-[#660066]/5"
-            >
-              Open file ↗
-            </button>
-          </li>
-        ))}
-      </ul>
+      <AdminEvidenceFileList applicationId={applicationId} files={files} />
     </section>
   );
 }
@@ -329,6 +365,12 @@ const PMI_FIELDS: { key: string; label: string }[] = [
   { key: "paidThroughAlternative", label: "Paid through alternative" },
 ];
 
+const WITNESS_FIELDS: { key: string; label: string }[] = [
+  { key: "fullName", label: "Full name" },
+  { key: "email", label: "Email" },
+  { key: "address", label: "Address" },
+];
+
 function pickFields(
   data: Record<string, unknown> | null | undefined,
   fields: { key: string; label: string }[]
@@ -353,6 +395,20 @@ export function AdminApplicationViewer({
     stage1?.pmi && typeof stage1.pmi === "object"
       ? (stage1.pmi as Record<string, unknown>)
       : null;
+  const stage2 =
+    application.stage2Data && typeof application.stage2Data === "object"
+      ? (application.stage2Data as Record<string, unknown>)
+      : null;
+  const witness =
+    stage2?.witness && typeof stage2.witness === "object"
+      ? (stage2.witness as Record<string, unknown>)
+      : null;
+  const witnessProofFiles = application.evidenceFiles.filter((file) =>
+    isWitnessEvidenceUploadKey(file.uploadKey)
+  );
+  const otherEvidenceFiles = application.evidenceFiles.filter(
+    (file) => !isWitnessEvidenceUploadKey(file.uploadKey)
+  );
 
   return (
     <div className="space-y-4">
@@ -400,7 +456,26 @@ export function AdminApplicationViewer({
         rows={pickFields(pmi, PMI_FIELDS)}
       />
 
-      <JsonSection title="Stage 2 / claimant data" data={application.stage2Data} />
+      <DataSection
+        title="Witness details"
+        description="Claimant stage 2 witness information"
+        rows={pickFields(witness, WITNESS_FIELDS)}
+      />
+
+      <WitnessProofsSection
+        applicationId={application.id}
+        files={witnessProofFiles}
+      />
+
+      {stage2 &&
+        Object.keys(stage2).some((key) => key !== "witness") && (
+          <JsonSection
+            title="Other stage 2 / claimant data"
+            data={Object.fromEntries(
+              Object.entries(stage2).filter(([key]) => key !== "witness")
+            )}
+          />
+        )}
 
       <DocusignSignedSection
         applicationId={application.id}
@@ -409,7 +484,7 @@ export function AdminApplicationViewer({
         legalSignedAt={application.legalSignedAt}
       />
 
-      <EvidenceSection applicationId={application.id} files={application.evidenceFiles} />
+      <EvidenceSection applicationId={application.id} files={otherEvidenceFiles} />
 
       {application.paymentEvents.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">

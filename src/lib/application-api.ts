@@ -17,11 +17,17 @@ async function parseApiJson(res: Response) {
   try {
     return { data: JSON.parse(text), ok: res.ok, status: res.status };
   } catch {
-    throw new Error(
-      text.startsWith("Internal")
-        ? "Server error — check the backend console and ensure the API is running on port 5000."
-        : text.slice(0, 200)
-    );
+    const lowered = text.toLowerCase();
+    if (
+      lowered.includes("internal server error") ||
+      lowered.includes("econnrefused") ||
+      lowered.includes("bad gateway")
+    ) {
+      throw new Error(
+        "Could not reach the API. Ensure the backend is running (default port 5000) and restart the Next.js dev server if you changed PORT."
+      );
+    }
+    throw new Error(text.slice(0, 200));
   }
 }
 
@@ -258,19 +264,43 @@ export async function saveEvidenceFile(file: {
   return data.file;
 }
 
+export async function deleteEvidenceFile(fileId: string) {
+  const res = await fetch(`${getApiBase()}/api/application/evidence/${encodeURIComponent(fileId)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (res.status === 401) {
+    clearUserToken();
+    throw new Error("Session expired. Please sign in again.");
+  }
+  if (!res.ok && res.status !== 204) {
+    const { data } = await parseApiJson(res);
+    throw new Error(typeof data.error === "string" ? data.error : "Failed to delete file");
+  }
+}
+
 export type DocusignStatusResponse = {
   envelopeId?: string | null;
   status?: string | null;
+  completedDateTime?: string | null;
+  allSignersCompleted?: boolean;
   legalSignedAt?: string | null;
+  rateLimited?: boolean;
+  webhookConfigured?: boolean;
   configured?: boolean;
   signerEmail?: string | null;
-  signers?: { name?: string; email?: string; status?: string }[];
+  signers?: { name?: string; email?: string; status?: string; roleName?: string | null; routingOrder?: string | null }[];
   multipleSigners?: boolean;
   pendingSigners?: { name?: string; email?: string; status?: string }[];
 };
 
-export async function fetchDocusignStatus(): Promise<DocusignStatusResponse> {
-  const res = await fetch(`${getApiBase()}/api/docusign/status`, {
+export async function fetchDocusignStatus(options?: {
+  refresh?: boolean;
+}): Promise<DocusignStatusResponse> {
+  const endpoint = `${getApiBase()}/api/docusign/status${
+    options?.refresh ? "?refresh=1" : ""
+  }`;
+  const res = await fetch(endpoint, {
     headers: authHeaders(),
     cache: "no-store",
   });
@@ -299,7 +329,7 @@ export type StartDocusignResponse = {
 
 export async function startDocusignSigning(
   returnBaseUrl: string,
-  options?: { forceNew?: boolean }
+  options?: { forceNew?: boolean; attachPmiEvidence?: boolean; returnContext?: string }
 ): Promise<StartDocusignResponse> {
   const res = await fetch(`${getApiBase()}/api/docusign/send`, {
     method: "POST",
@@ -307,6 +337,8 @@ export async function startDocusignSigning(
     body: JSON.stringify({
       returnBaseUrl,
       forceNew: options?.forceNew === true,
+      attachPmiEvidence: options?.attachPmiEvidence !== false,
+      returnContext: options?.returnContext,
     }),
   });
   const { data, ok } = await parseApiJson(res);
@@ -325,8 +357,256 @@ export async function startDocusignSigning(
   return data as StartDocusignResponse;
 }
 
+export async function startWitnessDocusignSigning(
+  returnBaseUrl: string,
+  witness: { email: string; name: string; address?: string }
+): Promise<StartDocusignResponse & { witnessStatus?: string; alreadyCompleted?: boolean }> {
+  const res = await fetch(`${getApiBase()}/api/docusign/witness/send`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      returnBaseUrl,
+      witnessEmail: witness.email,
+      witnessName: witness.name,
+      witnessAddress: witness.address || "",
+    }),
+  });
+  const { data, ok } = await parseApiJson(res);
+  if (res.status === 401) {
+    clearUserToken();
+    throw new Error("Session expired. Please sign in again.");
+  }
+  if (!ok) {
+    let message =
+      typeof data.error === "string" ? data.error : "Failed to start witness signing";
+    if (Array.isArray(data.availableRoles) && data.availableRoles.length > 0) {
+      message += ` Available template roles: ${data.availableRoles.join(", ")}.`;
+    }
+    const err = new Error(message) as Error & {
+      hint?: string;
+      availableRoles?: string[];
+      code?: string;
+    };
+    if (typeof data.hint === "string") err.hint = data.hint;
+    if (Array.isArray(data.availableRoles)) err.availableRoles = data.availableRoles;
+    if (typeof data.code === "string") err.code = data.code;
+    if (
+      !err.code &&
+      /invalid envelope status/i.test(message)
+    ) {
+      err.code = "ENVELOPE_ALREADY_COMPLETED";
+    }
+    throw err;
+  }
+  return data as StartDocusignResponse & { witnessStatus?: string; alreadyCompleted?: boolean };
+}
+
+export async function fetchSignedDocusignPdf(): Promise<Blob> {
+  const token = getUserToken();
+  const res = await fetch(`${getApiBase()}/api/docusign/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    cache: "no-store",
+  });
+  if (res.status === 401) {
+    clearUserToken();
+    throw new Error("Session expired. Please sign in again.");
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof data.error === "string" ? data.error : "Could not load signed PDF"
+    );
+  }
+  return res.blob();
+}
+
+export async function openSignedDocusignPdf() {
+  const blob = await fetchSignedDocusignPdf();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export async function downloadSignedDocusignPdf(
+  fileName = "fipo-engagement-signed.pdf"
+) {
+  const blob = await fetchSignedDocusignPdf();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export function isDocusignComplete(status: string | null | undefined) {
   return status === "COMPLETED";
+}
+
+export function isSignerStatusDone(status: string | null | undefined) {
+  const normalised = String(status || "").toLowerCase();
+  return (
+    normalised === "completed" ||
+    normalised === "signed" ||
+    normalised === "autoresponded"
+  );
+}
+
+export function pickPrimarySigner(
+  signers: DocusignStatusResponse["signers"] | undefined
+) {
+  if (!signers?.length) return undefined;
+  return signers.find((s) => s.routingOrder === "1") ?? signers[0];
+}
+
+export function pickWitnessSigner(
+  signers: DocusignStatusResponse["signers"] | undefined,
+  options?: { witnessEmail?: string; witnessRoleName?: string }
+) {
+  if (!signers?.length) return undefined;
+  const primary = pickPrimarySigner(signers);
+  const candidates = signers.filter((signer) => {
+    if (signers.length <= 1) return false;
+    if (signer.routingOrder === "1") return false;
+    if (
+      primary?.email &&
+      signer.email &&
+      primary.email.toLowerCase() === signer.email.toLowerCase()
+    ) {
+      return false;
+    }
+    return true;
+  });
+  if (!candidates.length) return undefined;
+
+  const witnessEmail = options?.witnessEmail?.trim().toLowerCase();
+  if (witnessEmail) {
+    const byEmail = candidates.find(
+      (signer) => signer.email?.toLowerCase() === witnessEmail
+    );
+    if (byEmail) return byEmail;
+  }
+
+  const witnessRoleName = options?.witnessRoleName;
+  return (
+    candidates.find((signer) => witnessRoleName && signer.roleName === witnessRoleName) ||
+    candidates.find((signer) => /witness/i.test(signer.roleName || "")) ||
+    candidates.find((signer) => signer.routingOrder === "2") ||
+    candidates[0]
+  );
+}
+
+export function isWitnessSigningComplete(
+  data: Pick<DocusignStatusResponse, "signers">,
+  witnessEmail?: string
+) {
+  const witness = pickWitnessSigner(data.signers, { witnessEmail });
+  if (!witness || !isSignerStatusDone(witness.status)) return false;
+
+  // Placeholder recipients from Stage 1 are not a real witness signature.
+  const email = String(witness.email || "").toLowerCase();
+  if (email.includes("@fipo-sign.local")) return false;
+  if (/^witness\s*\(pending\)$/i.test(String(witness.name || "").trim())) {
+    return false;
+  }
+
+  return true;
+}
+
+/** Stage 2 success: envelope completed with a real second signer finished. */
+export function isStage2EnvelopeComplete(
+  data: Pick<
+    DocusignStatusResponse,
+    "status" | "signers" | "allSignersCompleted"
+  >,
+  witnessEmail?: string
+) {
+  if (!isDocusignComplete(data.status)) return false;
+  if (isWitnessSigningComplete(data, witnessEmail)) return true;
+  if (data.allSignersCompleted && (data.signers?.length ?? 0) >= 2) {
+    const witness = pickWitnessSigner(data.signers, { witnessEmail });
+    const email = String(witness?.email || "").toLowerCase();
+    if (!witness || email.includes("@fipo-sign.local")) return false;
+    return true;
+  }
+  const signers = data.signers ?? [];
+  if (
+    signers.length >= 2 &&
+    signers.every((signer) => isSignerStatusDone(signer.status))
+  ) {
+    const witness = pickWitnessSigner(signers, { witnessEmail });
+    const email = String(witness?.email || "").toLowerCase();
+    if (!witness || email.includes("@fipo-sign.local")) return false;
+    return true;
+  }
+  return false;
+}
+
+/** True only for legacy broken envelopes — not when Stage 1 is done and witness is pending (SENT). */
+export function isClaimantSigningComplete(
+  data: Pick<DocusignStatusResponse, "signers">
+) {
+  const primary = pickPrimarySigner(data.signers);
+  return !!primary && isSignerStatusDone(primary.status);
+}
+
+export function shouldOfferStage1Restart(
+  data: Pick<DocusignStatusResponse, "status" | "signers" | "allSignersCompleted">,
+  witnessEmail?: string,
+  _options?: { stage1MarkedComplete?: boolean }
+) {
+  const status = data.status;
+  const signers = data.signers ?? [];
+
+  // SENT/DELIVERED = claimant done, witness pending — normal Stage 2, never restart.
+  if (isDocusignInProgress(status)) {
+    return false;
+  }
+
+  if (!isDocusignComplete(status)) {
+    return false;
+  }
+
+  // Witness flow finished successfully — never show Sign again.
+  if (isStage2EnvelopeComplete(data, witnessEmail)) {
+    return false;
+  }
+
+  // Wait for signer details before deciding — avoids a false "Sign again" flash.
+  if (!signers.length) {
+    return false;
+  }
+
+  // COMPLETED without a verified witness signature — Stage 2 cannot proceed.
+  return true;
+}
+
+export function describeEnvelopeSignerProgress(
+  data: Pick<DocusignStatusResponse, "signers" | "allSignersCompleted" | "pendingSigners">,
+  witnessEmail?: string
+) {
+  const signers = data.signers;
+  if (!signers?.length) return [];
+
+  const activeWitnessEmail = witnessEmail?.trim().toLowerCase();
+
+  return signers.map((signer) => {
+    const label =
+      signer.roleName ||
+      (activeWitnessEmail &&
+      signer.email?.toLowerCase() === activeWitnessEmail
+        ? "Witness"
+        : signer.routingOrder === "1"
+          ? "Claimant"
+          : signer.name || signer.email || "Signer");
+
+    return {
+      label,
+      status: signer.status || "pending",
+      done: isSignerStatusDone(signer.status),
+      email: signer.email || undefined,
+    };
+  });
 }
 
 export function isDocusignInProgress(status: string | null | undefined) {
@@ -379,13 +659,14 @@ export function docusignReturnEventMessage(event: string | null | undefined) {
 export async function pollDocusignStatus(options?: {
   maxAttempts?: number;
   delayMs?: number;
+  refresh?: boolean;
 }) {
-  const maxAttempts = options?.maxAttempts ?? 5;
+  const maxAttempts = options?.maxAttempts ?? 2;
   const delayMs = options?.delayMs ?? 2000;
-  let last = await fetchDocusignStatus();
+  let last = await fetchDocusignStatus({ refresh: options?.refresh });
   for (let attempt = 1; attempt < maxAttempts && !isDocusignComplete(last.status); attempt++) {
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    last = await fetchDocusignStatus();
+    last = await fetchDocusignStatus({ refresh: options?.refresh });
   }
   return last;
 }
@@ -424,4 +705,67 @@ export function getPmiEvidenceFiles(
   const files = application?.evidenceFiles;
   if (!Array.isArray(files)) return [];
   return files.filter((file) => isPmiEvidenceFile(file as EvidenceFileRecord)) as EvidenceFileRecord[];
+}
+
+export const WITNESS_EVIDENCE_UPLOAD_KEYS = {
+  photoId: "witness-photo-id",
+  proofOfAddress: "witness-proof-of-address",
+} as const;
+
+export function isWitnessEvidenceUploadKey(uploadKey: string | null | undefined) {
+  const key = String(uploadKey || "");
+  return (
+    key === WITNESS_EVIDENCE_UPLOAD_KEYS.photoId ||
+    key === WITNESS_EVIDENCE_UPLOAD_KEYS.proofOfAddress
+  );
+}
+
+export function getWitnessEvidenceFiles(
+  application: Record<string, unknown> | null | undefined
+): {
+  photoId: EvidenceFileRecord | null;
+  proofOfAddress: EvidenceFileRecord | null;
+} {
+  const files = application?.evidenceFiles;
+  if (!Array.isArray(files)) {
+    return { photoId: null, proofOfAddress: null };
+  }
+
+  let photoId: EvidenceFileRecord | null = null;
+  let proofOfAddress: EvidenceFileRecord | null = null;
+
+  for (const raw of files) {
+    const file = raw as EvidenceFileRecord;
+    const uploadKey = String(file.uploadKey || "");
+    if (uploadKey === WITNESS_EVIDENCE_UPLOAD_KEYS.photoId) {
+      photoId = file;
+    } else if (uploadKey === WITNESS_EVIDENCE_UPLOAD_KEYS.proofOfAddress) {
+      proofOfAddress = file;
+    }
+  }
+
+  return { photoId, proofOfAddress };
+}
+
+export function evidenceUploadLabel(uploadKey: string | null | undefined) {
+  switch (String(uploadKey || "")) {
+    case WITNESS_EVIDENCE_UPLOAD_KEYS.photoId:
+      return "Witness photo ID";
+    case WITNESS_EVIDENCE_UPLOAD_KEYS.proofOfAddress:
+      return "Witness proof of address";
+    case "pmi-evidence-a":
+      return "PMI evidence A";
+    case "pmi-evidence-b":
+      return "PMI evidence B";
+    case "relationship":
+      return "Relationship evidence";
+    case "fee-level":
+      return "Fee level evidence";
+    case "income":
+      return "Income evidence";
+    case "additional":
+      return "Additional evidence";
+    default:
+      return uploadKey ? String(uploadKey) : "Upload";
+  }
 }

@@ -18,12 +18,26 @@ import {
   fetchDocusignStatus,
   pollDocusignStatus,
   startDocusignSigning,
+  startWitnessDocusignSigning,
   isDocusignComplete,
+  isDocusignInProgress,
+  isSignerStatusDone,
+  pickPrimarySigner,
+  isWitnessSigningComplete,
+  shouldOfferStage1Restart,
+  isStage2EnvelopeComplete,
+  describeEnvelopeSignerProgress,
+  openSignedDocusignPdf,
+  downloadSignedDocusignPdf,
   docusignStatusMessage,
   docusignReturnEventMessage,
   getPmiEvidenceFiles,
+  getWitnessEvidenceFiles,
+  deleteEvidenceFile,
+  WITNESS_EVIDENCE_UPLOAD_KEYS,
   type DocusignStatusResponse,
   type EvidenceFileRecord,
+  type StartDocusignResponse,
 } from "@/lib/application-api";
 import MembershipPaymentSection, {
   type PaymentSectionHandle,
@@ -153,6 +167,9 @@ export default function AccordionRegistration({ application }: Props) {
 
   // ── Prefill from a previously saved (resumed) application ──
   const savedStage1 = (application?.stage1Data ?? {}) as Record<string, unknown>;
+  const savedStage2 = (application?.stage2Data ?? {}) as Record<string, unknown>;
+  const witnessSaved = (savedStage2.witness as Record<string, unknown>) ?? {};
+  const initialWitnessFiles = getWitnessEvidenceFiles(application);
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const savedStep =
     typeof application?.currentStep === "number" ? application.currentStep : 1;
@@ -270,17 +287,34 @@ export default function AccordionRegistration({ application }: Props) {
   const [pmiSavedFiles, setPmiSavedFiles] = useState<EvidenceFileRecord[]>(() =>
     getPmiEvidenceFiles(application)
   );
-  const pmiFilesReady = pmiSavedFiles.length > 0;
   const [docusignStatus, setDocusignStatus] = useState(
     str(application?.docusignStatus)
   );
   const [docusignStubMode, setDocusignStubMode] = useState(false);
-  const [docusignStubComplete, setDocusignStubComplete] = useState(false);
-  const [pmiDeclarationSigned, setPmiDeclarationSigned] = useState(
-    !!pmiSaved.declarationSigned
+  const [engagementSigned, setEngagementSigned] = useState(
+    !!savedStage1.engagementSigned
   );
+  const [engagementStubComplete, setEngagementStubComplete] = useState(false);
   const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [evidenceDisclosureAgreed, setEvidenceDisclosureAgreed] = useState(false);
+
+  // ── Claimant stage 2: witness details ──
+  const [witnessName, setWitnessName] = useState(str(witnessSaved.fullName));
+  const [witnessEmail, setWitnessEmail] = useState(str(witnessSaved.email));
+  const [witnessAddress, setWitnessAddress] = useState(str(witnessSaved.address));
+  const [witnessPhotoFile, setWitnessPhotoFile] = useState<EvidenceFileRecord | null>(
+    initialWitnessFiles.photoId
+  );
+  const [witnessProofFile, setWitnessProofFile] = useState<EvidenceFileRecord | null>(
+    initialWitnessFiles.proofOfAddress
+  );
+  const [witnessUploadError, setWitnessUploadError] = useState<string | null>(null);
+  const [witnessSigned, setWitnessSigned] = useState(
+    !!witnessSaved.declarationSigned ||
+      (str(application?.docusignStatus) === "COMPLETED" &&
+        !!str(witnessSaved.email))
+  );
+  const [witnessStubComplete, setWitnessStubComplete] = useState(false);
 
   function applyPmiFromRecord(pmi: Record<string, unknown>) {
     setPmiIncomeSource(str(pmi.incomeSource));
@@ -297,7 +331,6 @@ export default function AccordionRegistration({ application }: Props) {
     setPmiLlpNumber(str(pmi.llpRegistrationNumber));
     setPmiLlpMembers(str(pmi.llpMembers));
     setPmiPaidAlternative(!!pmi.paidThroughAlternative);
-    if (pmi.declarationSigned) setPmiDeclarationSigned(true);
   }
 
   function buildPmiPayload(declarationSigned: boolean) {
@@ -320,33 +353,6 @@ export default function AccordionRegistration({ application }: Props) {
     };
   }
 
-  const persistPmiDraft = useCallback(
-    async (declarationSigned = false) => {
-      const pmiData = buildPmiPayload(declarationSigned);
-      sessionStorage.setItem(PMI_FORM_DRAFT_KEY, JSON.stringify(pmiData));
-      await saveStep({
-        stage1Data: { ...savedStage1, pmi: pmiData },
-      });
-    },
-    [
-      savedStage1,
-      pmiIncomeSource,
-      pmiPaidAxa,
-      pmiAxaYears,
-      pmiPaidBupa,
-      pmiBupaYears,
-      pmiPaidCompany,
-      pmiCompanyName,
-      pmiCompanyNumber,
-      pmiCompanyDirectors,
-      pmiPaidLlp,
-      pmiLlpName,
-      pmiLlpNumber,
-      pmiLlpMembers,
-      pmiPaidAlternative,
-    ]
-  );
-
   // ── Claimant phase ──
 
   // ── Top-level journey tabs ──
@@ -360,7 +366,27 @@ export default function AccordionRegistration({ application }: Props) {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveModalSaving, setSaveModalSaving] = useState(false);
   const saveResumePromptShown = useRef(false);
+  /** Bring the next accordion into view after Continue (after React paints). */
+  const pendingScrollSectionIdRef = useRef<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  function prefillPracticeFromSupporter() {
+    const fullName = [title, forename.trim(), surname.trim()]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    if (fullName) setPracticeFullName(fullName);
+    if (email.trim()) setPracticeEmail(email.trim());
+    if (phone.trim()) setPracticePhone(phone.trim());
+  }
+
+  // Practice info: copy identity fields from supporter registration when that step opens.
+  useEffect(() => {
+    if (legalOpen !== "practice") return;
+    prefillPracticeFromSupporter();
+    // Only when the Practice Information accordion opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot supporter fields at open time
+  }, [legalOpen]);
 
   useEffect(() => {
     setIsLoggedIn(!!getUserToken());
@@ -377,6 +403,85 @@ export default function AccordionRegistration({ application }: Props) {
     } catch {
       sessionStorage.removeItem(PMI_FORM_DRAFT_KEY);
     }
+  }, []);
+
+  // If DocuSign already finalized and witness details exist, show Stage 2 success.
+  useEffect(() => {
+    if (docusignStatus !== "COMPLETED") return;
+    if (!str(witnessEmail) && !str(witnessSaved.email)) return;
+    if (!engagementSigned && !engagementStubComplete) return;
+    setWitnessSigned(true);
+  }, [docusignStatus, witnessEmail, engagementSigned, engagementStubComplete]);
+  useEffect(() => {
+    if (!getUserToken()) return;
+
+    let cancelled = false;
+    fetchDocusignStatus()
+      .then((data) => {
+        if (cancelled) return;
+        const email = witnessEmail.trim() || str(witnessSaved.email);
+        if (
+          isWitnessSigningComplete(data, email || undefined) ||
+          isStage2EnvelopeComplete(data, email || undefined)
+        ) {
+          if (!witnessSigned) setWitnessSigned(true);
+          return;
+        }
+
+        if (witnessSigned || witnessSaved.declarationSigned) {
+          // Only clear if the envelope is clearly still open for a witness,
+          // or completed without any second signer.
+          const signers = data.signers ?? [];
+          const stillNeedsWitness =
+            isDocusignInProgress(data.status) ||
+            (isDocusignComplete(data.status) && signers.length <= 1);
+          if (!stillNeedsWitness) return;
+
+          setWitnessSigned(false);
+          setWitnessStubComplete(false);
+          const stage2 = (savedStage2 ?? {}) as Record<string, unknown>;
+          const witness = (stage2.witness as Record<string, unknown>) ?? {};
+          if (witness.declarationSigned) {
+            saveStep({
+              stage2Data: {
+                ...stage2,
+                witness: { ...witness, declarationSigned: false },
+              },
+            }).catch(() => null);
+          }
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Envelope completed without witness — Stage 1 UI will offer Sign again.
+  // Do not clear engagementSigned here; that made Stage 1 look unfinished.
+  useEffect(() => {
+    if (!savedStage1.engagementSigned || engagementStubComplete || !getUserToken()) return;
+
+    let cancelled = false;
+    fetchDocusignStatus()
+      .then((data) => {
+        if (cancelled) return;
+        const email = witnessEmail.trim() || str(witnessSaved.email);
+        if (
+          !shouldOfferStage1Restart(data, email || undefined, {
+            stage1MarkedComplete: true,
+          })
+        ) {
+          return;
+        }
+        // Leave engagementSigned true — RegistrationDocuSignSection shows Sign again.
+      })
+      .catch(() => null);
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const alreadyRegistered = done.has("supporter") || isLoggedIn;
@@ -531,16 +636,34 @@ export default function AccordionRegistration({ application }: Props) {
     const returnEvent = params.get("event");
     const shouldPollHard =
       returnEvent === "signing_complete" || returnEvent === "viewing_complete";
+    const docusignContext =
+      params.get("docusignContext") ||
+      (sessionStorage.getItem("stage2_witness_docusign_pending")
+        ? "claimant-stage2"
+        : sessionStorage.getItem("stage1_docusign_pending")
+          ? "claimant-stage1"
+          : null);
+    const isClaimantStage1 = docusignContext === "claimant-stage1";
+    const isClaimantStage2 = docusignContext === "claimant-stage2";
+
+    if (!isClaimantStage1 && !isClaimantStage2) {
+      router.replace("/register?form=1", { scroll: false });
+      return;
+    }
 
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setActiveTab(1);
-    setLegalOpen("pmi");
+    setActiveTab(2);
+    setClaimantIntroOpen(false);
+    setClaimantOpen(isClaimantStage2 ? "stage2" : "stage1");
 
     async function verifyReturn() {
-      const attempts = shouldPollHard ? 10 : 5;
-      const data = await pollDocusignStatus({ maxAttempts: attempts, delayMs: 2000 });
+      const data = await pollDocusignStatus({
+        maxAttempts: 2,
+        delayMs: 2000,
+        refresh: true,
+      });
       return { data, status: str(data.status) };
     }
 
@@ -548,46 +671,77 @@ export default function AccordionRegistration({ application }: Props) {
       .then(async ({ data, status }) => {
         if (cancelled) return;
         if (status) setDocusignStatus(status);
-        if (isDocusignComplete(status)) {
-          sessionStorage.removeItem("pmi_docusign_pending");
-          setPmiDeclarationSigned(true);
-          setSaveMsg("Documents signed successfully.");
-          setError(null);
+        const signers = data.signers ?? [];
+        const primarySigner = pickPrimarySigner(signers);
+        const witnessEmailForCheck = witnessEmail.trim() || str(witnessSaved.email);
 
-          const app = await fetchApplication();
-          if (cancelled) return;
-          const stage1 = ((app?.stage1Data ?? savedStage1) as Record<string, unknown>) ?? {};
-          const draftRaw = sessionStorage.getItem(PMI_FORM_DRAFT_KEY);
-          let pmi = (stage1.pmi as Record<string, unknown>) ?? {};
+        if (isClaimantStage1) {
+          const claimantSigned =
+            returnEvent === "signing_complete" ||
+            isSignerStatusDone(primarySigner?.status) ||
+            (signers.length <= 1 && isDocusignComplete(status));
 
-          if (draftRaw) {
-            try {
-              pmi = { ...pmi, ...(JSON.parse(draftRaw) as Record<string, unknown>) };
-            } catch {
-              // ignore invalid draft
-            }
+          if (claimantSigned) {
+            sessionStorage.removeItem("stage1_docusign_pending");
+            setEngagementSigned(true);
+            setSaveMsg("Engagement documents signed successfully.");
+            setError(null);
+
+            const app = await fetchApplication();
+            if (cancelled) return;
+            const stage1 =
+              ((app?.stage1Data ?? savedStage1) as Record<string, unknown>) ?? {};
+            await saveStep({
+              stage1Data: { ...stage1, engagementSigned: true },
+            }).catch(() => null);
+          } else {
+            sessionStorage.removeItem("stage1_docusign_pending");
+            const eventMessage = docusignReturnEventMessage(returnEvent);
+            setError(eventMessage || docusignStatusMessage(status, data));
           }
+        } else if (isClaimantStage2) {
+          const witnessDone =
+            isStage2EnvelopeComplete(data, witnessEmailForCheck || undefined) ||
+            isWitnessSigningComplete(data, witnessEmailForCheck || undefined) ||
+            // Returning from the Stage 2 ceremony with a finished envelope means
+            // the witness step succeeded (signer lists can lag briefly).
+            ((returnEvent === "signing_complete" || returnEvent === "viewing_complete") &&
+              isDocusignComplete(status));
 
-          applyPmiFromRecord({ ...pmi, declarationSigned: true });
-          await saveStep({
-            stage1Data: {
-              ...stage1,
-              pmi: { ...pmi, declarationSigned: true },
-            },
-          }).catch(() => null);
-          sessionStorage.removeItem(PMI_FORM_DRAFT_KEY);
-        } else {
-          sessionStorage.removeItem("pmi_docusign_pending");
-          const draftRaw = sessionStorage.getItem(PMI_FORM_DRAFT_KEY);
-          if (draftRaw) {
-            try {
-              applyPmiFromRecord(JSON.parse(draftRaw) as Record<string, unknown>);
-            } catch {
-              // ignore invalid draft
-            }
+          if (witnessDone) {
+            sessionStorage.removeItem("stage2_witness_docusign_pending");
+            setWitnessSigned(true);
+            setDocusignStatus(status || "COMPLETED");
+            setSaveMsg(
+              isDocusignComplete(status)
+                ? "Witness signing completed successfully."
+                : "Witness signature recorded — waiting for DocuSign to finalize the document."
+            );
+            setError(null);
+
+            const app = await fetchApplication();
+            if (cancelled) return;
+            const stage2 =
+              ((app?.stage2Data ?? savedStage2) as Record<string, unknown>) ?? {};
+            const witness = (stage2.witness as Record<string, unknown>) ?? {};
+            await saveStep({
+              stage2Data: {
+                ...stage2,
+                witness: {
+                  ...witness,
+                  fullName: witnessName.trim() || str(witness.fullName),
+                  email: witnessEmailForCheck || str(witness.email),
+                  address: witnessAddress.trim() || str(witness.address),
+                  declarationSigned: true,
+                },
+              },
+            }).catch(() => null);
+          } else {
+            sessionStorage.removeItem("stage2_witness_docusign_pending");
+            setSaveMsg(null);
+            const eventMessage = docusignReturnEventMessage(returnEvent);
+            setError(eventMessage || docusignStatusMessage(status, data));
           }
-          const eventMessage = docusignReturnEventMessage(returnEvent);
-          setError(eventMessage || docusignStatusMessage(status, data));
         }
         router.replace("/register?form=1", { scroll: false });
       })
@@ -605,39 +759,81 @@ export default function AccordionRegistration({ application }: Props) {
     };
   }, [router]);
 
-  function goToTab(index: number, markCurrentDone = true) {
+  function scrollRegisterSectionIntoView(sectionId: string) {
+    const el = document.getElementById(`register-section-${sectionId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function requestScrollToSection(sectionId: string) {
+    pendingScrollSectionIdRef.current = sectionId;
+    // Same-tab targets are often already mounted.
+    window.requestAnimationFrame(() => {
+      scrollRegisterSectionIntoView(sectionId);
+    });
+  }
+
+  // Tab switches remount accordion content — scroll again after paint.
+  useEffect(() => {
+    const sectionId = pendingScrollSectionIdRef.current;
+    if (!sectionId) return;
+    const timer = window.setTimeout(() => {
+      scrollRegisterSectionIntoView(sectionId);
+      pendingScrollSectionIdRef.current = null;
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, open, legalOpen, claimantOpen, claimantIntroOpen]);
+
+  function goToTab(index: number, markCurrentDone = true, scrollSectionId?: string) {
     if (markCurrentDone) {
       setCompletedTabs((prev) => new Set(prev).add(activeTab));
     }
     setError(null);
     setActiveTab(index);
-    if (index === 1) setLegalOpen("overview");
+    if (index === 1) setLegalOpen(scrollSectionId === "evidence" ? "evidence" : "overview");
     if (index === 2) {
-      setClaimantOpen("overview");
-      setClaimantIntroOpen(true);
+      const claimantTarget =
+        scrollSectionId === "stage1" || scrollSectionId === "stage2"
+          ? scrollSectionId
+          : "overview";
+      setClaimantOpen(claimantTarget);
+      setClaimantIntroOpen(claimantTarget === "overview");
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const target =
+      scrollSectionId ??
+      (index === 1 || index === 2 ? "overview" : index === 3 ? "final" : null);
+    if (target) requestScrollToSection(target);
   }
 
   function markLegalDoneAndOpenNext(current: LegalSectionId) {
     setLegalDone((prev) => new Set(prev).add(current));
     const idx = LEGAL_SECTIONS.findIndex((s) => s.id === current);
     const next = LEGAL_SECTIONS[idx + 1];
-    if (next) setLegalOpen(next.id);
+    if (next) {
+      setLegalOpen(next.id);
+      requestScrollToSection(next.id);
+    }
   }
 
   function markClaimantDoneAndOpenNext(current: ClaimantSectionId) {
     setClaimantDone((prev) => new Set(prev).add(current));
     const idx = CLAIMANT_SECTIONS.findIndex((s) => s.id === current);
     const next = CLAIMANT_SECTIONS[idx + 1];
-    if (next) setClaimantOpen(next.id);
+    if (next) {
+      setClaimantOpen(next.id);
+      if (next.id !== "overview") setClaimantIntroOpen(false);
+      requestScrollToSection(next.id);
+    }
   }
 
   function markDoneAndOpenNext(current: SectionId) {
     setDone((prev) => new Set(prev).add(current));
     const idx = SECTIONS.findIndex((s) => s.id === current);
     const next = SECTIONS[idx + 1];
-    if (next) setOpen(next.id);
+    if (next) {
+      setOpen(next.id);
+      requestScrollToSection(next.id);
+    }
   }
 
   function openSaveResumeModal() {
@@ -689,13 +885,16 @@ export default function AccordionRegistration({ application }: Props) {
     setError(null);
     if (activeTab === 1) {
       const idx = LEGAL_SECTIONS.findIndex((s) => s.id === legalOpen);
-      if (idx > 0) setLegalOpen(LEGAL_SECTIONS[idx - 1].id);
+      if (idx > 0) {
+        const prev = LEGAL_SECTIONS[idx - 1].id;
+        setLegalOpen(prev);
+        requestScrollToSection(prev);
+      }
       return;
     }
     if (activeTab === 2) {
       if (claimantOpen === "overview") {
-        goToTab(1, false);
-        setLegalOpen("evidence");
+        goToTab(1, false, "evidence");
         return;
       }
       const idx = CLAIMANT_SECTIONS.findIndex((s) => s.id === claimantOpen);
@@ -703,17 +902,20 @@ export default function AccordionRegistration({ application }: Props) {
         const prev = CLAIMANT_SECTIONS[idx - 1].id;
         setClaimantOpen(prev);
         if (prev === "overview") setClaimantIntroOpen(true);
+        requestScrollToSection(prev);
       }
       return;
     }
     if (activeTab === 3) {
-      goToTab(2, false);
-      setClaimantOpen("stage2");
-      setClaimantIntroOpen(false);
+      goToTab(2, false, "stage2");
       return;
     }
     const idx = SECTIONS.findIndex((s) => s.id === open);
-    if (idx > 0) setOpen(SECTIONS[idx - 1].id);
+    if (idx > 0) {
+      const prev = SECTIONS[idx - 1].id;
+      setOpen(prev);
+      requestScrollToSection(prev);
+    }
   }
 
   // ── Section submit handlers ──
@@ -788,6 +990,7 @@ export default function AccordionRegistration({ application }: Props) {
         },
       });
 
+      prefillPracticeFromSupporter();
       markDoneAndOpenNext("supporter");
     } catch (err) {
       setError(
@@ -817,6 +1020,11 @@ export default function AccordionRegistration({ application }: Props) {
 
       if (payMethod === "stripe" && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
         if (!(await pollPaymentStatus({ maxAttempts: 1 }))) {
+          if (!stripePaymentIntentId) {
+            throw new Error(
+              "Please complete card payment in the form above before continuing."
+            );
+          }
           await confirmStripePayment(stripePaymentIntentId);
         }
         const confirmed = await pollPaymentStatus({ maxAttempts: 8, delayMs: 1500 });
@@ -874,6 +1082,7 @@ export default function AccordionRegistration({ application }: Props) {
   // ── Tab-level submit handlers ──
   function submitLegalOverview() {
     setError(null);
+    prefillPracticeFromSupporter();
     markLegalDoneAndOpenNext("overview");
   }
 
@@ -981,13 +1190,9 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please wait for uploads to finish.");
       return;
     }
-    if (!pmiDeclarationSigned && !docusignStubComplete) {
-      setError("Please sign the PMI relationship documents before continuing.");
-      return;
-    }
     setError(null);
     markLegalDoneAndOpenNext("pmi");
-    const pmiData = buildPmiPayload(pmiDeclarationSigned || docusignStubComplete);
+    const pmiData = buildPmiPayload(false);
     sessionStorage.removeItem(PMI_FORM_DRAFT_KEY);
     saveStep({
       stage1Data: { ...savedStage1, pmi: pmiData },
@@ -1022,12 +1227,31 @@ export default function AccordionRegistration({ application }: Props) {
 
   function submitClaimantStage1() {
     setError(null);
+    if (!engagementSigned && !engagementStubComplete) {
+      setError("Please sign the engagement documents with DocuSign before continuing.");
+      return;
+    }
     markClaimantDoneAndOpenNext("stage1");
-    saveStep({ currentStep: 6 }).catch(() => null);
+    saveStep({
+      currentStep: 6,
+      stage1Data: { ...savedStage1, engagementSigned: true },
+    }).catch(() => null);
   }
 
   async function submitClaimantStage2() {
     setError(null);
+    if (!witnessName.trim() || !witnessEmail.trim() || !witnessAddress.trim()) {
+      setError("Please complete all witness details.");
+      return;
+    }
+    if (!witnessPhotoFile || !witnessProofFile) {
+      setError("Please upload witness photo ID and proof of address.");
+      return;
+    }
+    if (!witnessSigned && !witnessStubComplete) {
+      setError("Please complete witness signing on the Litigation Management Agreement.");
+      return;
+    }
     setClaimantDone((prev) => {
       const next = new Set(prev);
       next.add("overview");
@@ -1038,7 +1262,21 @@ export default function AccordionRegistration({ application }: Props) {
     goToTab(3);
     setLoading(true);
     try {
-      await saveStep({ applicationType: "CLAIMANT", currentStep: 7 }).catch(() => null);
+      await saveStep({
+        applicationType: "CLAIMANT",
+        currentStep: 7,
+        stage2Data: {
+          ...savedStage2,
+          witness: {
+            fullName: witnessName.trim(),
+            email: witnessEmail.trim(),
+            address: witnessAddress.trim(),
+            declarationSigned: witnessSigned || witnessStubComplete,
+          },
+        },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save witness details.");
     } finally {
       setLoading(false);
     }
@@ -1111,6 +1349,7 @@ export default function AccordionRegistration({ application }: Props) {
               return (
               <AccordionItem
                 key={section.id}
+                sectionId={section.id}
                 label={section.label}
                 isOpen={open === section.id}
                 isDone={done.has(section.id)}
@@ -1174,6 +1413,7 @@ export default function AccordionRegistration({ application }: Props) {
               return (
                 <AccordionItem
                   key={section.id}
+                  sectionId={section.id}
                   label={section.label}
                   isOpen={legalOpen === section.id}
                   isDone={legalDone.has(section.id)}
@@ -1263,27 +1503,6 @@ export default function AccordionRegistration({ application }: Props) {
                           })
                         }
                       />
-                      <PmiDocuSignSection
-                        docusignStatus={docusignStatus}
-                        onStatusChange={setDocusignStatus}
-                        declarationSigned={pmiDeclarationSigned}
-                        uploadsInProgress={pmiUploading}
-                        pmiFilesReady={pmiFilesReady}
-                        pmiSavedFileCount={pmiSavedFiles.length}
-                        onBeforeSign={persistPmiDraft}
-                        onDeclarationSigned={() => {
-                          setPmiDeclarationSigned(true);
-                          persistPmiDraft(true).catch(() => null);
-                        }}
-                        stubMode={docusignStubMode}
-                        onStubModeChange={setDocusignStubMode}
-                        stubComplete={docusignStubComplete}
-                        onStubComplete={() => {
-                          setDocusignStubComplete(true);
-                          setPmiDeclarationSigned(true);
-                          persistPmiDraft(true).catch(() => null);
-                        }}
-                      />
                     </>
                   )}
 
@@ -1295,7 +1514,7 @@ export default function AccordionRegistration({ application }: Props) {
                     />
                   )}
 
-                  {error && legalOpen === section.id && section.id !== "pmi" && (
+                  {error && legalOpen === section.id && (
                     <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
                       {error}
                     </p>
@@ -1315,6 +1534,109 @@ export default function AccordionRegistration({ application }: Props) {
             setClaimantIntroOpen={setClaimantIntroOpen}
             claimantDone={claimantDone}
             error={error}
+            docusignStatus={docusignStatus}
+            onDocusignStatusChange={setDocusignStatus}
+            engagementSigned={engagementSigned}
+            onEngagementSigned={() => {
+              setEngagementSigned(true);
+              saveStep({
+                stage1Data: { ...savedStage1, engagementSigned: true },
+              }).catch(() => null);
+            }}
+            onEngagementUnsigned={() => {
+              setEngagementSigned(false);
+              saveStep({
+                stage1Data: { ...savedStage1, engagementSigned: false },
+              }).catch(() => null);
+            }}
+            docusignStubMode={docusignStubMode}
+            onDocusignStubModeChange={setDocusignStubMode}
+            engagementStubComplete={engagementStubComplete}
+            onEngagementStubComplete={() => {
+              setEngagementStubComplete(true);
+              setEngagementSigned(true);
+              saveStep({
+                stage1Data: { ...savedStage1, engagementSigned: true },
+              }).catch(() => null);
+            }}
+            witnessName={witnessName}
+            setWitnessName={setWitnessName}
+            witnessEmail={witnessEmail}
+            setWitnessEmail={setWitnessEmail}
+            witnessAddress={witnessAddress}
+            setWitnessAddress={setWitnessAddress}
+            witnessPhotoFile={witnessPhotoFile}
+            setWitnessPhotoFile={setWitnessPhotoFile}
+            witnessProofFile={witnessProofFile}
+            setWitnessProofFile={setWitnessProofFile}
+            witnessUploadError={witnessUploadError}
+            setWitnessUploadError={setWitnessUploadError}
+            witnessSigned={witnessSigned}
+            onWitnessSigned={() => {
+              setWitnessSigned(true);
+              saveStep({
+                stage2Data: {
+                  ...savedStage2,
+                  witness: {
+                    fullName: witnessName.trim(),
+                    email: witnessEmail.trim(),
+                    address: witnessAddress.trim(),
+                    declarationSigned: true,
+                  },
+                },
+              }).catch(() => null);
+            }}
+            onWitnessUnsigned={() => {
+              setWitnessSigned(false);
+              setWitnessStubComplete(false);
+              setSaveMsg(null);
+              saveStep({
+                stage2Data: {
+                  ...savedStage2,
+                  witness: {
+                    fullName: witnessName.trim(),
+                    email: witnessEmail.trim(),
+                    address: witnessAddress.trim(),
+                    declarationSigned: false,
+                  },
+                },
+              }).catch(() => null);
+            }}
+            onBeforeWitnessSign={async () => {
+              await saveStep({
+                stage2Data: {
+                  ...savedStage2,
+                  witness: {
+                    fullName: witnessName.trim(),
+                    email: witnessEmail.trim(),
+                    address: witnessAddress.trim(),
+                    declarationSigned: witnessSigned || witnessStubComplete,
+                  },
+                },
+              });
+            }}
+            witnessStubComplete={witnessStubComplete}
+            onWitnessStubComplete={() => {
+              setWitnessStubComplete(true);
+              setWitnessSigned(true);
+              saveStep({
+                stage2Data: {
+                  ...savedStage2,
+                  witness: {
+                    fullName: witnessName.trim(),
+                    email: witnessEmail.trim(),
+                    address: witnessAddress.trim(),
+                    declarationSigned: true,
+                  },
+                },
+              }).catch(() => null);
+            }}
+            onClearError={() => {
+              setError(null);
+            }}
+            onStage2NeedsRestartChange={(needs) => {
+              if (needs) setSaveMsg(null);
+            }}
           />
         )}
 
@@ -1352,11 +1674,7 @@ export default function AccordionRegistration({ application }: Props) {
               <button
                 type="button"
                 onClick={handleBack}
-                className={`rounded-lg font-semibold uppercase tracking-wide text-white transition hover:opacity-90 ${
-                  activeTab === 2 || activeTab === 3
-                    ? "h-[56px] px-8 text-[16px]"
-                    : "px-5 py-2.5 text-sm"
-                }`}
+                className="rounded-lg px-5 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:opacity-90"
                 style={{ backgroundColor: "#263238" }}
               >
                 Back
@@ -1378,11 +1696,7 @@ export default function AccordionRegistration({ application }: Props) {
                 type="button"
                 onClick={openSaveResumeModal}
                 disabled={!getUserToken()}
-                className={`rounded-lg border border-[#627489] bg-white font-semibold uppercase tracking-wide text-[#263238] transition hover:bg-zinc-50 disabled:opacity-40 ${
-                  activeTab === 2 || activeTab === 3
-                    ? "h-[56px] px-8 text-[16px]"
-                    : "px-5 py-2.5 text-sm"
-                }`}
+                className="rounded-lg border border-[#627489] bg-white px-5 py-2.5 text-sm font-semibold uppercase tracking-wide text-[#263238] transition hover:bg-zinc-50 disabled:opacity-40"
               >
                 Save and Resume
               </button>
@@ -1391,7 +1705,7 @@ export default function AccordionRegistration({ application }: Props) {
               <button
                 type="button"
                 onClick={() => router.push("/")}
-                className="h-[56px] rounded-lg px-8 text-[18px] font-semibold uppercase tracking-wide text-white transition hover:opacity-90"
+                className="rounded-lg px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:opacity-90"
                 style={{ backgroundColor: PURPLE }}
               >
                 Home
@@ -1401,11 +1715,7 @@ export default function AccordionRegistration({ application }: Props) {
                 type="button"
                 onClick={handleContinue}
                 disabled={loading}
-                className={`rounded-lg font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-60 ${
-                  activeTab === 2 || activeTab === 3
-                    ? "h-[56px] px-8 text-[16px]"
-                    : "px-6 py-2.5 text-sm"
-                }`}
+                className="rounded-lg px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-60"
                 style={{
                   backgroundColor:
                     activeTab === 2 || activeTab === 3 ? CLAIMANT_ACTIVE : PURPLE,
@@ -1522,6 +1832,7 @@ function AccordionItem({
   isOpen,
   isDone,
   isLocked = false,
+  sectionId,
   onToggle,
   children,
 }: {
@@ -1529,11 +1840,15 @@ function AccordionItem({
   isOpen: boolean;
   isDone: boolean;
   isLocked?: boolean;
+  sectionId?: string;
   onToggle: () => void;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200">
+    <div
+      id={sectionId ? `register-section-${sectionId}` : undefined}
+      className="scroll-mt-28 overflow-hidden rounded-xl border border-zinc-200"
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -1738,6 +2053,35 @@ function ClaimantMemberAccordion({
   setClaimantIntroOpen,
   claimantDone,
   error,
+  docusignStatus,
+  onDocusignStatusChange,
+  engagementSigned,
+  onEngagementSigned,
+  onEngagementUnsigned,
+  docusignStubMode,
+  onDocusignStubModeChange,
+  engagementStubComplete,
+  onEngagementStubComplete,
+  witnessName,
+  setWitnessName,
+  witnessEmail,
+  setWitnessEmail,
+  witnessAddress,
+  setWitnessAddress,
+  witnessPhotoFile,
+  setWitnessPhotoFile,
+  witnessProofFile,
+  setWitnessProofFile,
+  witnessUploadError,
+  setWitnessUploadError,
+  witnessSigned,
+  onWitnessSigned,
+  onWitnessUnsigned,
+  onBeforeWitnessSign,
+  witnessStubComplete,
+  onWitnessStubComplete,
+  onClearError,
+  onStage2NeedsRestartChange,
 }: {
   claimantOpen: ClaimantSectionId;
   setClaimantOpen: (id: ClaimantSectionId) => void;
@@ -1745,13 +2089,44 @@ function ClaimantMemberAccordion({
   setClaimantIntroOpen: (open: boolean) => void;
   claimantDone: Set<ClaimantSectionId>;
   error: string | null;
+  docusignStatus: string;
+  onDocusignStatusChange: (status: string) => void;
+  engagementSigned: boolean;
+  onEngagementSigned: () => void;
+  onEngagementUnsigned: () => void;
+  docusignStubMode: boolean;
+  onDocusignStubModeChange: (stub: boolean) => void;
+  engagementStubComplete: boolean;
+  onEngagementStubComplete: () => void;
+  witnessName: string;
+  setWitnessName: (value: string) => void;
+  witnessEmail: string;
+  setWitnessEmail: (value: string) => void;
+  witnessAddress: string;
+  setWitnessAddress: (value: string) => void;
+  witnessPhotoFile: EvidenceFileRecord | null;
+  setWitnessPhotoFile: (file: EvidenceFileRecord | null) => void;
+  witnessProofFile: EvidenceFileRecord | null;
+  setWitnessProofFile: (file: EvidenceFileRecord | null) => void;
+  witnessUploadError: string | null;
+  setWitnessUploadError: (value: string | null) => void;
+  witnessSigned: boolean;
+  onWitnessSigned: () => void;
+  onWitnessUnsigned: () => void;
+  onBeforeWitnessSign?: () => Promise<void>;
+  witnessStubComplete: boolean;
+  onWitnessStubComplete: () => void;
+  onClearError: () => void;
+  onStage2NeedsRestartChange?: (needs: boolean) => void;
 }) {
+  const [stage2NeedsRestart, setStage2NeedsRestart] = useState(false);
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
       <button
         type="button"
+        id="register-section-overview"
         onClick={() => setClaimantIntroOpen(!claimantIntroOpen)}
-        className="flex min-h-[60px] w-full items-center justify-between px-[30px] py-3 text-left transition"
+        className="flex min-h-[60px] w-full scroll-mt-28 items-center justify-between px-[30px] py-3 text-left transition"
         style={{
           backgroundColor: claimantIntroOpen ? "#F3E8F3" : "#f5f5f5",
           color: claimantIntroOpen ? CLAIMANT_ACTIVE : CLAIMANT_HEADING,
@@ -1781,7 +2156,11 @@ function ClaimantMemberAccordion({
         const isOpen = claimantOpen === section.id;
 
         return (
-          <div key={section.id}>
+          <div
+            key={section.id}
+            id={`register-section-${section.id}`}
+            className="scroll-mt-28"
+          >
             <button
               type="button"
               disabled={isLocked}
@@ -1809,13 +2188,68 @@ function ClaimantMemberAccordion({
               <ClaimantAccordionIcon open={isOpen} />
             </button>
 
-            {isOpen && section.id === "stage1" && <ClaimantStage1Panel />}
+            {isOpen && section.id === "stage1" && (
+              <ClaimantStage1Panel
+                docusignStatus={docusignStatus}
+                onDocusignStatusChange={onDocusignStatusChange}
+                engagementSigned={engagementSigned}
+                onEngagementSigned={onEngagementSigned}
+                onEngagementUnsigned={onEngagementUnsigned}
+                witnessEmail={witnessEmail}
+                docusignStubMode={docusignStubMode}
+                onDocusignStubModeChange={onDocusignStubModeChange}
+                engagementStubComplete={engagementStubComplete}
+                onEngagementStubComplete={onEngagementStubComplete}
+              />
+            )}
 
-            {isOpen && section.id === "stage2" && <ClaimantStage2Panel />}
+            {isOpen && section.id === "stage2" && (
+              <ClaimantStage2Panel
+                witnessName={witnessName}
+                setWitnessName={setWitnessName}
+                witnessEmail={witnessEmail}
+                setWitnessEmail={setWitnessEmail}
+                witnessAddress={witnessAddress}
+                setWitnessAddress={setWitnessAddress}
+                witnessPhotoFile={witnessPhotoFile}
+                setWitnessPhotoFile={setWitnessPhotoFile}
+                witnessProofFile={witnessProofFile}
+                setWitnessProofFile={setWitnessProofFile}
+                uploadError={witnessUploadError}
+                setUploadError={setWitnessUploadError}
+                docusignStatus={docusignStatus}
+                onDocusignStatusChange={onDocusignStatusChange}
+                witnessSigned={witnessSigned}
+                onWitnessSigned={onWitnessSigned}
+                onWitnessUnsigned={onWitnessUnsigned}
+                onBeforeWitnessSign={onBeforeWitnessSign}
+                docusignStubMode={docusignStubMode}
+                onDocusignStubModeChange={onDocusignStubModeChange}
+                witnessStubComplete={witnessStubComplete}
+                onWitnessStubComplete={onWitnessStubComplete}
+                engagementSigned={engagementSigned}
+                engagementStubComplete={engagementStubComplete}
+                onGoToStage1={() => {
+                  onClearError();
+                  setClaimantOpen("stage1");
+                  setClaimantIntroOpen(false);
+                }}
+                onClearError={onClearError}
+                onNeedsStage1RestartChange={(needs) => {
+                  setStage2NeedsRestart(needs);
+                  onStage2NeedsRestartChange?.(needs);
+                  if (needs) onClearError();
+                }}
+              />
+            )}
 
-            {error && claimantOpen === section.id && (
-              <p className="border-t border-zinc-200 bg-white px-[30px] py-3 text-sm text-red-700">
-                {error}
+            {error &&
+              claimantOpen === section.id &&
+              !(section.id === "stage2" && stage2NeedsRestart) && (
+              <p className="border-t border-zinc-200 bg-white px-[30px] py-3">
+                <span className="block rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </span>
               </p>
             )}
           </div>
@@ -1843,12 +2277,104 @@ function ClaimantPurpleCheck() {
   );
 }
 
-function ClaimantStage1Panel() {
+function EngagementSignedPdfLinks({
+  visible,
+}: {
+  visible: boolean;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!visible) return null;
+
+  async function openPdf(download = false) {
+    setLoading(true);
+    setError(null);
+    try {
+      if (download) {
+        await downloadSignedDocusignPdf();
+      } else {
+        await openSignedDocusignPdf();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load signed PDF");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <p
+        className="mt-4 font-normal"
+        style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+      >
+        To view the engagement documents in pdf,{" "}
+        <button
+          type="button"
+          onClick={() => openPdf(false)}
+          disabled={loading}
+          className="font-semibold underline disabled:opacity-60"
+          style={{ color: PURPLE }}
+        >
+          {loading ? "Loading…" : "click here."}
+        </button>
+      </p>
+      <button
+        type="button"
+        onClick={() => openPdf(true)}
+        disabled={loading}
+        className="mt-4 inline-flex items-center gap-[10px] disabled:opacity-60"
+        style={{ color: PURPLE }}
+      >
+        <Image src="/pdf-file-icon.svg" alt="" width={30} height={30} />
+        <span className="font-semibold" style={{ fontSize: 16, lineHeight: "24px" }}>
+          {loading ? "Loading…" : "Download PDF"}
+        </span>
+        <Image src="/open-in-new.svg" alt="" width={24} height={24} />
+      </button>
+      {error && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
+    </>
+  );
+}
+
+function ClaimantStage1Panel({
+  docusignStatus,
+  onDocusignStatusChange,
+  engagementSigned,
+  onEngagementSigned,
+  onEngagementUnsigned,
+  witnessEmail,
+  docusignStubMode,
+  onDocusignStubModeChange,
+  engagementStubComplete,
+  onEngagementStubComplete,
+}: {
+  docusignStatus: string;
+  onDocusignStatusChange: (status: string) => void;
+  engagementSigned: boolean;
+  onEngagementSigned: () => void;
+  onEngagementUnsigned: () => void;
+  witnessEmail: string;
+  docusignStubMode: boolean;
+  onDocusignStubModeChange: (stub: boolean) => void;
+  engagementStubComplete: boolean;
+  onEngagementStubComplete: () => void;
+}) {
+  const [envelopeNeedsRestart, setEnvelopeNeedsRestart] = useState(false);
   const bullets = [
     "If you paid \u00a3250 to become a Supporter Member then the fee which will be deducted from any damages associated with your claim will be 32.5% + VAT; and if you paid \u00a3500 then the fee deducted from any damages associated with your claim will be 30% + VAT.",
     "FIPO will instruct Harcus Parker as its and your solicitors, who will in turn instruct Suzanne Rab, a barrister in independent practice at Matrix Chambers, who FIPO has instructed directly;",
     "FIPO will use the action group\u2019s funds, which include your subscriptions, to contribute to legal costs during the \u2018Pre-Action Phase\u2019 described in the engagement letter and will use any balance to pay towards the cost of ATE insurance.",
   ];
+  const signedPdfReady =
+    engagementSigned &&
+    isDocusignComplete(docusignStatus) &&
+    !engagementStubComplete &&
+    !docusignStubMode &&
+    !envelopeNeedsRestart;
 
   return (
     <div className="bg-white px-[24px] py-6">
@@ -1913,39 +2439,35 @@ function ClaimantStage1Panel() {
             className="mt-4 font-normal"
             style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
           >
-            The engagement documents may be reviewed here:
+            Sign the engagement letter with DocuSign to approve FIPO&rsquo;s engagement
+            with Harcus Parker and Counsel:
           </p>
-          <button
-            type="button"
-            className="mt-4 flex h-[58px] w-full items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 text-[14px] font-normal text-white transition hover:opacity-90"
-            style={{
-              backgroundColor: CLAIMANT_ACTIVE,
-              borderColor: PURPLE,
-            }}
-          >
-            <Image src="/description-icon.svg" alt="" width={24} height={24} />
-            Review Engagement Documents
-          </button>
-          <p
-            className="mt-4 font-normal"
-            style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
-          >
-            To view the engagement documents in pdf,{" "}
-            <a href="#" className="font-semibold" style={{ color: PURPLE }}>
-              click here.
-            </a>
-          </p>
-          <a
-            href="#"
-            className="mt-4 inline-flex items-center gap-[10px]"
-            style={{ color: PURPLE }}
-          >
-            <Image src="/pdf-file-icon.svg" alt="" width={30} height={30} />
-            <span className="font-semibold" style={{ fontSize: 16, lineHeight: "24px" }}>
-              Download PDF
-            </span>
-            <Image src="/open-in-new.svg" alt="" width={24} height={24} />
-          </a>
+          <RegistrationDocuSignSection
+            variant="embedded"
+            requirePmiFiles={false}
+            attachPmiEvidence={false}
+            autoConfirmOnGlobalComplete={false}
+            sessionKey="stage1_docusign_pending"
+            returnContext="claimant-stage1"
+            primaryButtonLabel="Review Engagement Documents"
+            signedMessage="Engagement documents signed successfully"
+            docusignStatus={docusignStatus}
+            onStatusChange={onDocusignStatusChange}
+            declarationSigned={engagementSigned}
+            onDeclarationSigned={onEngagementSigned}
+            onClearSigned={onEngagementUnsigned}
+            witnessEmail={witnessEmail.trim() || undefined}
+            stage1Complete={engagementSigned || engagementStubComplete}
+            onNeedsStage1RestartChange={setEnvelopeNeedsRestart}
+            uploadsInProgress={false}
+            pmiFilesReady
+            pmiSavedFileCount={0}
+            stubMode={docusignStubMode}
+            onStubModeChange={onDocusignStubModeChange}
+            stubComplete={engagementStubComplete}
+            onStubComplete={onEngagementStubComplete}
+          />
+          <EngagementSignedPdfLinks visible={signedPdfReady} />
         </div>
       </div>
 
@@ -2010,12 +2532,14 @@ function ClaimantStage2UploadRow({
   title,
   subtitle,
   status,
+  uploading = false,
   onUpload,
   onDelete,
 }: {
   title: string;
   subtitle: string;
   status: "empty" | "completed";
+  uploading?: boolean;
   onUpload?: () => void;
   onDelete?: () => void;
 }) {
@@ -2046,7 +2570,8 @@ function ClaimantStage2UploadRow({
           <button
             type="button"
             onClick={onDelete}
-            className="transition hover:opacity-80"
+            disabled={uploading}
+            className="transition hover:opacity-80 disabled:opacity-50"
             aria-label={`Remove ${title}`}
           >
             <Image src="/delete-icon.svg" alt="" width={30} height={30} />
@@ -2056,7 +2581,8 @@ function ClaimantStage2UploadRow({
         <button
           type="button"
           onClick={onUpload}
-          className="ml-3 shrink-0 transition hover:opacity-80"
+          disabled={uploading}
+          className="ml-3 shrink-0 transition hover:opacity-80 disabled:opacity-50"
           aria-label={`Upload ${title}`}
         >
           <Image src="/cloud-upload.svg" alt="" width={30} height={30} />
@@ -2066,16 +2592,139 @@ function ClaimantStage2UploadRow({
   );
 }
 
-function ClaimantStage2Panel() {
-  const [witnessName, setWitnessName] = useState("");
-  const [witnessEmail, setWitnessEmail] = useState("");
-  const [witnessAddress, setWitnessAddress] = useState("");
-  const [photoIdStatus, setPhotoIdStatus] = useState<"empty" | "completed">(
-    "completed"
-  );
-  const [proofStatus, setProofStatus] = useState<"empty" | "completed">("empty");
+function ClaimantStage2Panel({
+  witnessName,
+  setWitnessName,
+  witnessEmail,
+  setWitnessEmail,
+  witnessAddress,
+  setWitnessAddress,
+  witnessPhotoFile,
+  setWitnessPhotoFile,
+  witnessProofFile,
+  setWitnessProofFile,
+  uploadError,
+  setUploadError,
+  docusignStatus,
+  onDocusignStatusChange,
+  witnessSigned,
+  onWitnessSigned,
+  onWitnessUnsigned,
+  onBeforeWitnessSign,
+  docusignStubMode,
+  onDocusignStubModeChange,
+  witnessStubComplete,
+  onWitnessStubComplete,
+  engagementSigned,
+  engagementStubComplete,
+  onGoToStage1,
+  onClearError,
+  onNeedsStage1RestartChange,
+}: {
+  witnessName: string;
+  setWitnessName: (value: string) => void;
+  witnessEmail: string;
+  setWitnessEmail: (value: string) => void;
+  witnessAddress: string;
+  setWitnessAddress: (value: string) => void;
+  witnessPhotoFile: EvidenceFileRecord | null;
+  setWitnessPhotoFile: (file: EvidenceFileRecord | null) => void;
+  witnessProofFile: EvidenceFileRecord | null;
+  setWitnessProofFile: (file: EvidenceFileRecord | null) => void;
+  uploadError: string | null;
+  setUploadError: (value: string | null) => void;
+  docusignStatus: string;
+  onDocusignStatusChange: (status: string) => void;
+  witnessSigned: boolean;
+  onWitnessSigned: () => void;
+  onWitnessUnsigned: () => void;
+  onBeforeWitnessSign?: () => Promise<void>;
+  docusignStubMode: boolean;
+  onDocusignStubModeChange: (stub: boolean) => void;
+  witnessStubComplete: boolean;
+  onWitnessStubComplete: () => void;
+  engagementSigned: boolean;
+  engagementStubComplete: boolean;
+  onGoToStage1: () => void;
+  onClearError: () => void;
+  onNeedsStage1RestartChange: (needs: boolean) => void;
+}) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const proofInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [proofUploading, setProofUploading] = useState(false);
+  const witnessDetailsReady =
+    !!witnessName.trim() &&
+    !!witnessEmail.trim() &&
+    !!witnessAddress.trim() &&
+    !!witnessPhotoFile &&
+    !!witnessProofFile;
+  const stage1Complete = engagementSigned || engagementStubComplete;
+  const witnessSigningReady = witnessDetailsReady && stage1Complete;
+
+  async function handlePhotoUpload(file: File) {
+    setUploadError(null);
+    setPhotoUploading(true);
+    try {
+      if (witnessPhotoFile?.id) {
+        await deleteEvidenceFile(witnessPhotoFile.id).catch(() => null);
+      }
+      const saved = await uploadEvidenceFile(file, WITNESS_EVIDENCE_UPLOAD_KEYS.photoId);
+      setWitnessPhotoFile(saved);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Photo ID upload failed.");
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  }
+
+  async function handleProofUpload(file: File) {
+    setUploadError(null);
+    setProofUploading(true);
+    try {
+      if (witnessProofFile?.id) {
+        await deleteEvidenceFile(witnessProofFile.id).catch(() => null);
+      }
+      const saved = await uploadEvidenceFile(file, WITNESS_EVIDENCE_UPLOAD_KEYS.proofOfAddress);
+      setWitnessProofFile(saved);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Proof of address upload failed.");
+    } finally {
+      setProofUploading(false);
+      if (proofInputRef.current) proofInputRef.current.value = "";
+    }
+  }
+
+  async function handlePhotoDelete() {
+    setUploadError(null);
+    setPhotoUploading(true);
+    try {
+      if (witnessPhotoFile?.id) {
+        await deleteEvidenceFile(witnessPhotoFile.id);
+      }
+      setWitnessPhotoFile(null);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Could not remove photo ID.");
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
+  async function handleProofDelete() {
+    setUploadError(null);
+    setProofUploading(true);
+    try {
+      if (witnessProofFile?.id) {
+        await deleteEvidenceFile(witnessProofFile.id);
+      }
+      setWitnessProofFile(null);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Could not remove proof of address.");
+    } finally {
+      setProofUploading(false);
+    }
+  }
 
   return (
     <div className="bg-white px-[24px] py-6">
@@ -2183,16 +2832,18 @@ function ClaimantStage2Panel() {
             <ClaimantStage2UploadRow
               title="Photo ID"
               subtitle="(Passport / driving licence)"
-              status={photoIdStatus}
+              status={witnessPhotoFile ? "completed" : "empty"}
+              uploading={photoUploading}
               onUpload={() => photoInputRef.current?.click()}
-              onDelete={() => setPhotoIdStatus("empty")}
+              onDelete={handlePhotoDelete}
             />
             <ClaimantStage2UploadRow
               title="Proof of address"
               subtitle="(utility bill, bank statement, etc.)"
-              status={proofStatus}
+              status={witnessProofFile ? "completed" : "empty"}
+              uploading={proofUploading}
               onUpload={() => proofInputRef.current?.click()}
-              onDelete={() => setProofStatus("empty")}
+              onDelete={handleProofDelete}
             />
             <input
               ref={photoInputRef}
@@ -2200,7 +2851,8 @@ function ClaimantStage2Panel() {
               className="hidden"
               accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) => {
-                if (e.target.files?.[0]) setPhotoIdStatus("completed");
+                const file = e.target.files?.[0];
+                if (file) void handlePhotoUpload(file);
               }}
             />
             <input
@@ -2209,9 +2861,13 @@ function ClaimantStage2Panel() {
               className="hidden"
               accept=".pdf,.jpg,.jpeg,.png"
               onChange={(e) => {
-                if (e.target.files?.[0]) setProofStatus("completed");
+                const file = e.target.files?.[0];
+                if (file) void handleProofUpload(file);
               }}
             />
+            {uploadError && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</p>
+            )}
           </div>
         </div>
 
@@ -2222,6 +2878,12 @@ function ClaimantStage2Panel() {
           >
             Litigation Management Agreement
           </h5>
+          {(witnessSigned || witnessStubComplete) &&
+            isDocusignComplete(docusignStatus) && (
+            <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+              Witness signing completed successfully — the document is finalized.
+            </div>
+          )}
           <p
             className="mt-6 font-normal"
             style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
@@ -2252,24 +2914,51 @@ function ClaimantStage2Panel() {
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            className="mt-8 flex h-[58px] w-full max-w-[340px] items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 font-medium transition hover:opacity-90"
-            style={{
-              backgroundColor: CLAIMANT_STAGE2_BTN_BG,
-              borderColor: CLAIMANT_ACTIVE,
-              color: CLAIMANT_ACTIVE,
-              fontSize: 16,
+          <RegistrationDocuSignSection
+            variant="embedded"
+            requirePmiFiles={false}
+            attachPmiEvidence={false}
+            autoConfirmOnGlobalComplete={false}
+            sessionKey="stage2_witness_docusign_pending"
+            returnContext="claimant-stage2"
+            primaryButtonLabel="Review Litigation Agreement"
+            signedMessage="Witness signing completed successfully"
+            description="The witness signs separately in Stage 2 — click Review Litigation Agreement below and pass the device to your witness. The witness will see a Sign Here tab below your signature (not during Stage 1)."
+            docusignStatus={docusignStatus}
+            onStatusChange={onDocusignStatusChange}
+            declarationSigned={witnessSigned}
+            onDeclarationSigned={onWitnessSigned}
+            onClearSigned={onWitnessUnsigned}
+            uploadsInProgress={photoUploading || proofUploading}
+            signingReady={witnessSigningReady}
+            signingBlockedMessage={
+              !stage1Complete
+                ? "Complete Stage 1 engagement signing first."
+                : !witnessDetailsReady
+                  ? "Complete witness details and upload both documents first."
+                  : undefined
+            }
+            requestSigningFn={async (_forceNew, returnBaseUrl) =>
+              startWitnessDocusignSigning(returnBaseUrl, {
+                email: witnessEmail.trim(),
+                name: witnessName.trim(),
+                address: witnessAddress.trim(),
+              })
+            }
+            onBeforeSign={onBeforeWitnessSign}
+            witnessEmail={witnessEmail.trim()}
+            stage1Complete={stage1Complete}
+            onGoToStage1={onGoToStage1}
+            onNeedsStage1RestartChange={(needs) => {
+              onNeedsStage1RestartChange(needs);
+              if (needs) onClearError();
             }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M8 18H16V16H8V18ZM8 14H16V12H8V14ZM6 22C5.45 22 4.97917 21.8042 4.5875 21.4125C4.19583 21.0208 4 20.55 4 20V4C4 3.45 4.19583 2.97917 4.5875 2.5875C4.97917 2.19583 5.45 2 6 2H14L20 8V20C20 20.55 19.8042 21.0208 19.4125 21.4125C19.0208 21.8042 18.55 22 18 22H6ZM13 9V4H6V20H18V9H13Z"
-                fill={CLAIMANT_ACTIVE}
-              />
-            </svg>
-            Review Litigation Agreement
-          </button>
+            stubMode={docusignStubMode}
+            onStubModeChange={onDocusignStubModeChange}
+            stubComplete={witnessStubComplete}
+            onStubComplete={onWitnessStubComplete}
+            embeddedButtonStyle="stage2"
+          />
         </div>
       </div>
     </div>
@@ -2512,7 +3201,10 @@ function FinalConfirmationAccordion({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+    <div
+      id="register-section-final"
+      className="scroll-mt-28 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+    >
       <button
         type="button"
         onClick={() => setMainOpen(!mainOpen)}
@@ -3373,15 +4065,34 @@ function PmiRelationshipPanel(p: {
   );
 }
 
-function PmiDocuSignSection({
+function RegistrationDocuSignSection({
   docusignStatus,
   onStatusChange,
   declarationSigned,
   onDeclarationSigned,
   onBeforeSign,
-  uploadsInProgress,
-  pmiFilesReady,
-  pmiSavedFileCount,
+  uploadsInProgress = false,
+  requirePmiFiles = true,
+  attachPmiEvidence = true,
+  pmiFilesReady = true,
+  pmiSavedFileCount = 0,
+  sessionKey = "pmi_docusign_pending",
+  returnContext,
+  variant = "section",
+  title = "Sign your PMI relationship declaration",
+  description,
+  primaryButtonLabel,
+  signedMessage = "Documents signed successfully",
+  autoConfirmOnGlobalComplete = true,
+  signingReady = true,
+  signingBlockedMessage,
+  requestSigningFn,
+  embeddedButtonStyle = "stage1",
+  witnessEmail,
+  onGoToStage1,
+  onClearSigned,
+  onNeedsStage1RestartChange,
+  stage1Complete = false,
   stubMode,
   onStubModeChange,
   stubComplete,
@@ -3392,38 +4103,222 @@ function PmiDocuSignSection({
   declarationSigned: boolean;
   onDeclarationSigned: () => void;
   onBeforeSign?: () => Promise<void>;
-  uploadsInProgress: boolean;
-  pmiFilesReady: boolean;
-  pmiSavedFileCount: number;
+  uploadsInProgress?: boolean;
+  requirePmiFiles?: boolean;
+  attachPmiEvidence?: boolean;
+  pmiFilesReady?: boolean;
+  pmiSavedFileCount?: number;
+  sessionKey?: string;
+  returnContext?: string;
+  variant?: "section" | "embedded";
+  title?: string;
+  description?: string;
+  primaryButtonLabel?: string;
+  signedMessage?: string;
+  autoConfirmOnGlobalComplete?: boolean;
+  signingReady?: boolean;
+  signingBlockedMessage?: string;
+  requestSigningFn?: (
+    forceNew: boolean,
+    returnBaseUrl: string
+  ) => Promise<StartDocusignResponse & { alreadyCompleted?: boolean }>;
+  embeddedButtonStyle?: "stage1" | "stage2";
+  witnessEmail?: string;
+  onGoToStage1?: () => void;
+  onClearSigned?: () => void;
+  onNeedsStage1RestartChange?: (needs: boolean) => void;
+  stage1Complete?: boolean;
   stubMode: boolean;
   onStubModeChange: (stub: boolean) => void;
   stubComplete: boolean;
   onStubComplete: () => void;
 }) {
+  const needsPmiFiles = requirePmiFiles !== false;
+  const filesReady = (needsPmiFiles ? pmiFilesReady : true) && signingReady !== false;
+  const attachEvidence = attachPmiEvidence !== false;
+  const defaultDescription = needsPmiFiles
+    ? `After uploading your evidence above, click below to sign with DocuSign. Your uploaded PMI documents (${pmiSavedFileCount} saved) will be attached to the signing envelope.`
+    : "Click below to review and sign the engagement documents with DocuSign.";
+  const resolvedDescription = description ?? defaultDescription;
+  const resolvedPrimaryLabel =
+    primaryButtonLabel ??
+    (needsPmiFiles ? "Sign with DocuSign" : "Review Engagement Documents");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consentUrl, setConsentUrl] = useState<string | null>(null);
   const [statusContext, setStatusContext] = useState<DocusignStatusResponse | null>(null);
+  const [needsStage1Restart, setNeedsStage1Restart] = useState(false);
   const signed = declarationSigned || stubComplete;
+  const resolvedStatus = statusContext?.status ?? docusignStatus;
+  const envelopeComplete = isDocusignComplete(resolvedStatus);
+  const signerProgress = describeEnvelopeSignerProgress(
+    statusContext ?? { signers: undefined },
+    witnessEmail
+  );
+  const allSignersDone =
+    statusContext?.allSignersCompleted ||
+    (signerProgress.length > 0 && signerProgress.every((line) => line.done));
+  const witnessActuallySigned =
+    returnContext !== "claimant-stage2" ||
+    stubMode ||
+    (statusContext != null &&
+      (isWitnessSigningComplete(statusContext, witnessEmail) ||
+        isStage2EnvelopeComplete(statusContext, witnessEmail))) ||
+    // After return, declarationSigned can be set before signer details load.
+    (signed && envelopeComplete);
+  // Stage 2 must not show "completed" just because Stage 1 finished the envelope.
+  const stage2FalselyComplete =
+    returnContext === "claimant-stage2" &&
+    signed &&
+    !stubMode &&
+    statusContext != null &&
+    (statusContext.signers?.length ?? 0) > 0 &&
+    !isStage2EnvelopeComplete(statusContext, witnessEmail) &&
+    !isWitnessSigningComplete(statusContext, witnessEmail) &&
+    // Don't clear a Stage 2 success just because signer matching is ambiguous.
+    !(statusContext.allSignersCompleted && (statusContext.signers?.length ?? 0) >= 2);
+  const signedForUi = signed && !stage2FalselyComplete;
+  const showWitnessPendingFinalize =
+    returnContext === "claimant-stage2" &&
+    signedForUi &&
+    !stubMode &&
+    !needsStage1Restart &&
+    !envelopeComplete &&
+    witnessActuallySigned;
+  const expectedMultiSignerSetup =
+    (statusContext?.signers?.length ?? 0) === 2 &&
+    statusContext?.multipleSigners;
+  // Only an in-progress envelope can take a witness signature. COMPLETED
+  // envelopes must restart Stage 1 — do not treat "claimant signed" alone as ready.
+  const stage1ReadyForWitness =
+    stage1Complete && isDocusignInProgress(resolvedStatus);
+  const statusCheckedForRestart = statusContext != null || !!resolvedStatus;
+  const stage2RemoteComplete =
+    envelopeComplete &&
+    (witnessActuallySigned ||
+      !!statusContext?.allSignersCompleted ||
+      ((statusContext?.signers?.length ?? 0) >= 2 &&
+        (statusContext?.signers ?? []).every((s) => isSignerStatusDone(s.status))));
+  // Only lock/restart when we know signers and Stage 2 is NOT actually complete.
+  const envelopeLockedCompleted =
+    returnContext === "claimant-stage2" &&
+    envelopeComplete &&
+    statusContext != null &&
+    (statusContext.signers?.length ?? 0) > 0 &&
+    !stage2RemoteComplete &&
+    !stubMode;
+  const showStage2RestartPrompt =
+    onGoToStage1 &&
+    !signedForUi &&
+    returnContext === "claimant-stage2" &&
+    !stage1ReadyForWitness &&
+    !stage2RemoteComplete &&
+    ((needsStage1Restart && statusCheckedForRestart) || envelopeLockedCompleted);
+  const showSignedSuccess =
+    returnContext === "claimant-stage2"
+      ? !showStage2RestartPrompt && !stubMode && stage2RemoteComplete
+      : signedForUi && !needsStage1Restart;
+  const blockSigningForRestart =
+    (needsStage1Restart && returnContext === "claimant-stage1") ||
+    showStage2RestartPrompt;
+  const showExtraSignersWarning =
+    !signedForUi &&
+    !stubMode &&
+    statusContext?.multipleSigners &&
+    returnContext !== "claimant-stage2" &&
+    !needsStage1Restart &&
+    !expectedMultiSignerSetup &&
+    ((statusContext?.signers?.length ?? 0) > 2 ||
+      (statusContext?.pendingSigners?.length ?? 0) > 0);
+  // Stage 2: only offer Review Litigation Agreement when the envelope is still
+  // open (SENT/DELIVERED). COMPLETED envelopes must use Sign again instead.
+  const showSigningActions =
+    !stubMode &&
+    !signedForUi &&
+    (returnContext === "claimant-stage2"
+      ? !showStage2RestartPrompt &&
+        (stage1ReadyForWitness || (!statusCheckedForRestart && stage1Complete))
+      : !blockSigningForRestart);
+
+  function markNeedsStage1Restart(needs: boolean) {
+    setNeedsStage1Restart(needs);
+    onNeedsStage1RestartChange?.(needs);
+  }
 
   function applyStatusData(data: DocusignStatusResponse) {
     const status = data.status ? String(data.status) : "";
     if (status) onStatusChange(status);
     setStatusContext(data);
+    if (data.rateLimited) {
+      setError(
+        "DocuSign rate limit reached. Showing last saved status — try Refresh again in a few minutes."
+      );
+    }
     return status;
   }
 
   useEffect(() => {
-    if (signed || stubMode) return;
+    if (
+      signed &&
+      returnContext === "claimant-stage1" &&
+      isDocusignInProgress(resolvedStatus)
+    ) {
+      markNeedsStage1Restart(false);
+    }
+  }, [signed, returnContext, resolvedStatus]);
+
+  // Clear stale "witness signed" when DocuSign shows the witness has not signed.
+  useEffect(() => {
+    if (returnContext !== "claimant-stage2" || stubMode) return;
+    if (!stage2FalselyComplete) return;
+    onClearSigned?.();
+  }, [returnContext, stubMode, stage2FalselyComplete, onClearSigned]);
+
+  useEffect(() => {
+    if (returnContext !== "claimant-stage2") return;
+    if (witnessActuallySigned || isStage2EnvelopeComplete(statusContext ?? {}, witnessEmail)) {
+      markNeedsStage1Restart(false);
+    }
+  }, [returnContext, witnessActuallySigned, statusContext, witnessEmail]);
+
+  useEffect(() => {
+    if (signedForUi || stubMode) return;
+
+    if (returnContext === "claimant-stage2") {
+      if (
+        docusignStatus !== "SENT" &&
+        docusignStatus !== "DELIVERED" &&
+        !isDocusignComplete(docusignStatus)
+      ) {
+        return;
+      }
+
+      let cancelled = false;
+      fetchDocusignStatus()
+        .then((data) => {
+          if (cancelled) return;
+          applyStatusData(data);
+          if (isWitnessSigningComplete(data, witnessEmail)) {
+            sessionStorage.removeItem(sessionKey);
+            onDeclarationSigned();
+          }
+        })
+        .catch(() => null);
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (docusignStatus !== "SENT" && docusignStatus !== "DELIVERED") return;
 
     let cancelled = false;
-    pollDocusignStatus({ maxAttempts: 3, delayMs: 1500 })
+    fetchDocusignStatus()
       .then((data) => {
         if (cancelled) return;
         const status = applyStatusData(data);
         if (isDocusignComplete(status)) {
-          sessionStorage.removeItem("pmi_docusign_pending");
+          sessionStorage.removeItem(sessionKey);
           onDeclarationSigned();
           setError(null);
         }
@@ -3433,14 +4328,115 @@ function PmiDocuSignSection({
     return () => {
       cancelled = true;
     };
-  }, [signed, stubMode, docusignStatus, onDeclarationSigned, onStatusChange]);
+  }, [signedForUi, stubMode, docusignStatus, onDeclarationSigned, onStatusChange, sessionKey, returnContext, witnessEmail]);
+
+  // Stage 2: sync DocuSign status and surface success after witness signing.
+  useEffect(() => {
+    if (returnContext !== "claimant-stage2" || stubMode) return;
+
+    let cancelled = false;
+    fetchDocusignStatus({ refresh: true })
+      .then((data) => {
+        if (cancelled) return;
+        applyStatusData(data);
+
+        const signers = data.signers ?? [];
+        const allDone =
+          signers.length >= 2 &&
+          signers.every((signer) => isSignerStatusDone(signer.status));
+        const complete =
+          isStage2EnvelopeComplete(data, witnessEmail) ||
+          isWitnessSigningComplete(data, witnessEmail) ||
+          (isDocusignComplete(data.status) &&
+            (data.allSignersCompleted || allDone));
+
+        if (complete) {
+          markNeedsStage1Restart(false);
+          sessionStorage.removeItem(sessionKey);
+          onDeclarationSigned();
+          setError(null);
+          return;
+        }
+
+        if (isDocusignComplete(data.status) && signers.length <= 1) {
+          markNeedsStage1Restart(true);
+          if (signed) onClearSigned?.();
+          return;
+        }
+
+        if (
+          signed &&
+          signers.length > 0 &&
+          !isWitnessSigningComplete(data, witnessEmail) &&
+          !isStage2EnvelopeComplete(data, witnessEmail) &&
+          isDocusignInProgress(data.status) &&
+          onClearSigned
+        ) {
+          // Keep signed=true while envelope is still open after witness action.
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [returnContext, stubMode, witnessEmail, sessionKey, onDeclarationSigned, onClearSigned, signed, stage1Complete]);
+
+  useEffect(() => {
+    if (stubMode || !getUserToken()) return;
+    if (returnContext !== "claimant-stage1" && returnContext !== "claimant-stage2") return;
+    if (returnContext === "claimant-stage2" && signedForUi) return;
+
+    let cancelled = false;
+    fetchDocusignStatus()
+      .then((data) => {
+        if (cancelled) return;
+        applyStatusData(data);
+        const needs = shouldOfferStage1Restart(data, witnessEmail, {
+          stage1MarkedComplete: stage1Complete,
+        });
+        markNeedsStage1Restart(needs);
+        if (needs) {
+          setError(null);
+          // Keep Stage 1 marked signed in the app — show Sign again instead of
+          // clearing progress (the amber box replaces the green success state).
+        } else if (
+          (stage1Complete && isDocusignInProgress(data.status)) ||
+          (signed && returnContext === "claimant-stage1")
+        ) {
+          markNeedsStage1Restart(false);
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [signedForUi, signed, returnContext, witnessEmail, stubMode, onClearSigned, stage1Complete]);
+
+  useEffect(() => {
+    if (!stage1Complete || returnContext !== "claimant-stage2" || stubMode) return;
+    if (isDocusignInProgress(resolvedStatus)) {
+      markNeedsStage1Restart(false);
+    }
+  }, [stage1Complete, returnContext, resolvedStatus, stubMode]);
+
+  useEffect(() => {
+    if (!envelopeLockedCompleted) return;
+    markNeedsStage1Restart(true);
+  }, [envelopeLockedCompleted]);
 
   function getReturnBaseUrl() {
     const url = new URL(window.location.href);
     url.searchParams.delete("docusign");
+    url.searchParams.delete("docusignContext");
     url.searchParams.delete("paypalReturn");
     url.searchParams.delete("paypalCancel");
     url.searchParams.delete("token");
+    url.searchParams.delete("event");
+    if (returnContext) {
+      url.searchParams.set("docusignContext", returnContext);
+    }
     if (!url.searchParams.has("form")) {
       url.searchParams.set("form", "1");
     }
@@ -3449,7 +4445,13 @@ function PmiDocuSignSection({
 
   async function requestSigning(forceNew = false) {
     const returnBaseUrl = getReturnBaseUrl();
-    return startDocusignSigning(returnBaseUrl, { forceNew });
+    if (requestSigningFn) {
+      return requestSigningFn(forceNew, returnBaseUrl);
+    }
+    return startDocusignSigning(returnBaseUrl, {
+      forceNew,
+      attachPmiEvidence: attachEvidence,
+    });
   }
 
   async function redirectToSigning(forceNew = false) {
@@ -3463,7 +4465,7 @@ function PmiDocuSignSection({
     }
 
     if (data.signingUrl) {
-      sessionStorage.setItem("pmi_docusign_pending", "1");
+      sessionStorage.setItem(sessionKey, "1");
       window.location.assign(data.signingUrl);
       return { redirected: true as const, data };
     }
@@ -3473,16 +4475,74 @@ function PmiDocuSignSection({
 
   async function refreshStatus() {
     setLoading(true);
-    setError(null);
+    if (!statusContext?.rateLimited) {
+      setError(null);
+    }
     try {
-      const data = await pollDocusignStatus({ maxAttempts: 3, delayMs: 1500 });
+      const data = await fetchDocusignStatus({ refresh: true });
       const status = applyStatusData(data);
-      if (isDocusignComplete(status)) {
-        sessionStorage.removeItem("pmi_docusign_pending");
+
+      if (returnContext === "claimant-stage2") {
+        if (
+          isStage2EnvelopeComplete(data, witnessEmail) ||
+          isWitnessSigningComplete(data, witnessEmail)
+        ) {
+          sessionStorage.removeItem(sessionKey);
+          markNeedsStage1Restart(false);
+          onDeclarationSigned();
+          if (!data.rateLimited) setError(null);
+          return;
+        }
+        if (isDocusignComplete(status)) {
+          // Completed envelope after Stage 2 ceremony — treat as success unless
+          // signer data clearly shows no witness participated.
+          const signers = data.signers ?? [];
+          if (signers.length <= 1) {
+            markNeedsStage1Restart(true);
+            if (!data.rateLimited) setError(null);
+            return;
+          }
+          sessionStorage.removeItem(sessionKey);
+          markNeedsStage1Restart(false);
+          onDeclarationSigned();
+          if (!data.rateLimited) setError(null);
+          return;
+        }
+        if (isWitnessSigningComplete(data, witnessEmail) && !data.rateLimited) {
+          setError(null);
+          return;
+        }
+      } else if (isDocusignComplete(status)) {
+        sessionStorage.removeItem(sessionKey);
         onDeclarationSigned();
+        if (!data.rateLimited) setError(null);
         return;
       }
-      setError(docusignStatusMessage(status, data));
+
+      if (
+        returnContext === "claimant-stage2" &&
+        shouldOfferStage1Restart(data, witnessEmail, {
+          stage1MarkedComplete: stage1Complete,
+        })
+      ) {
+        markNeedsStage1Restart(true);
+        if (!data.rateLimited) setError(null);
+        return;
+      }
+      if (
+        returnContext === "claimant-stage1" &&
+        shouldOfferStage1Restart(data, witnessEmail, {
+          stage1MarkedComplete: stage1Complete,
+        })
+      ) {
+        markNeedsStage1Restart(true);
+        onClearSigned?.();
+        if (!data.rateLimited) setError(null);
+        return;
+      }
+      if (!data.rateLimited) {
+        setError(docusignStatusMessage(status, data));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not refresh signing status.");
     } finally {
@@ -3490,13 +4550,68 @@ function PmiDocuSignSection({
     }
   }
 
+  async function handleReturnToDocusign() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await redirectToSigning(false);
+      if (result.redirected) return;
+
+      const data = result.data;
+      if (data.docusignStatus) {
+        applyStatusData({
+          status: data.docusignStatus,
+          signers: statusContext?.signers,
+        });
+      }
+
+      if (isDocusignComplete(data.docusignStatus)) {
+        onDeclarationSigned();
+        return;
+      }
+
+      if (data.signingUrl) {
+        sessionStorage.setItem(sessionKey, "1");
+        window.location.assign(data.signingUrl);
+        return;
+      }
+
+      if (data.alreadyCompleted) {
+        setError("DocuSign reports this envelope is already complete. Click Refresh status.");
+        return;
+      }
+
+      setError("Could not reopen DocuSign. Please try again.");
+    } catch (err) {
+      const e = err as Error & { code?: string };
+      if (e.message) {
+        setError(e.message);
+      } else {
+        setError("Could not reopen DocuSign.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStage1Restart() {
+    onClearSigned?.();
+    markNeedsStage1Restart(false);
+    await handleStartSigning(true);
+  }
+
   async function handleStartSigning(forceNew = false) {
-    if (uploadsInProgress) {
+    if (needsPmiFiles && uploadsInProgress) {
       setError("Please wait for your evidence uploads to finish before signing.");
       return;
     }
-    if (!pmiFilesReady) {
-      setError("Please upload at least one PMI evidence document before signing with DocuSign.");
+    if (!filesReady) {
+      setError(
+        signingBlockedMessage ||
+          (needsPmiFiles
+            ? "Please upload at least one PMI evidence document before signing with DocuSign."
+            : "Please complete the required fields before signing.")
+      );
       return;
     }
     if (!getUserToken()) {
@@ -3515,41 +4630,112 @@ function PmiDocuSignSection({
 
       const data = result.data;
 
-      if (data.alreadyCompleted || isDocusignComplete(data.docusignStatus)) {
+      if (data.alreadyCompleted) {
+        if (returnContext === "claimant-stage2") {
+          const statusData = await fetchDocusignStatus({ refresh: true });
+          applyStatusData(statusData);
+          if (isWitnessSigningComplete(statusData, witnessEmail)) {
+            onDeclarationSigned();
+          } else {
+            markNeedsStage1Restart(true);
+            onClearSigned?.();
+          }
+          return;
+        }
         onDeclarationSigned();
         return;
       }
 
+      if (isDocusignComplete(data.docusignStatus)) {
+        if (returnContext === "claimant-stage2") {
+          const statusData = await fetchDocusignStatus({ refresh: true });
+          applyStatusData(statusData);
+          if (isWitnessSigningComplete(statusData, witnessEmail)) {
+            onDeclarationSigned();
+            return;
+          }
+          markNeedsStage1Restart(true);
+          onClearSigned?.();
+          setError(null);
+          return;
+        }
+        if (autoConfirmOnGlobalComplete) {
+          onDeclarationSigned();
+          return;
+        }
+        if (!forceNew) {
+          await handleStartSigning(true);
+          return;
+        }
+        setError("Could not start a new signing session. Please try again.");
+        return;
+      }
+
       if (data.signingUrl) {
-        sessionStorage.setItem("pmi_docusign_pending", "1");
+        sessionStorage.setItem(sessionKey, "1");
         window.location.assign(data.signingUrl);
         return;
       }
 
       setError("No signing URL was returned. Please try again.");
     } catch (err) {
-      const e = err as Error & { consentUrl?: string; hint?: string };
-      if (e.consentUrl) setConsentUrl(e.consentUrl);
-      const hint = e.hint ? ` ${e.hint}` : "";
-      setError(`${e.message}${hint}`);
+      const e = err as Error & { consentUrl?: string; hint?: string; code?: string };
+      if (
+        e.code === "ENVELOPE_ALREADY_COMPLETED" ||
+        /invalid envelope status/i.test(e.message || "")
+      ) {
+        markNeedsStage1Restart(true);
+        setError(null);
+        onClearSigned?.();
+        if (returnContext === "claimant-stage2") {
+          setStatusContext((prev) =>
+            prev
+              ? { ...prev, status: "COMPLETED" }
+              : ({ status: "COMPLETED", signers: [] } as DocusignStatusResponse)
+          );
+        }
+      } else {
+        if (e.consentUrl) setConsentUrl(e.consentUrl);
+        const hint = e.hint ? ` ${e.hint}` : "";
+        setError(`${e.message}${hint}`);
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <section className="mt-10 border-t border-zinc-200 pt-10">
-      <h4 className="text-[18px] font-semibold text-[#660066]">
-        Sign your PMI relationship declaration
-      </h4>
-      <p className="mt-3 text-sm leading-relaxed text-[#223645]">
-        After uploading your evidence above, click below to sign with DocuSign. Your
-        uploaded PMI documents ({pmiSavedFileCount} saved) will be attached to the
-        signing envelope.
-      </p>
+  const embeddedButton = variant === "embedded";
+  const stage2Button = embeddedButtonStyle === "stage2";
 
-      {!signed && !stubMode && docusignStatus && (
-        <p className="mt-3 rounded-lg bg-[#f3eef6] px-3 py-2 text-sm text-[#223645]">
+  const body = (
+    <>
+      {variant === "section" && (
+        <>
+          <h4 className="text-[18px] font-semibold text-[#660066]">{title}</h4>
+          <p className="mt-3 text-sm leading-relaxed text-[#223645]">{resolvedDescription}</p>
+        </>
+      )}
+
+      {variant === "embedded" && description && !showSignedSuccess && !showStage2RestartPrompt && (
+        <p
+          className="mt-4 font-normal"
+          style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
+        >
+          {resolvedDescription}
+        </p>
+      )}
+
+      {!signedForUi &&
+        !stubMode &&
+        !blockSigningForRestart &&
+        docusignStatus &&
+        !(
+          autoConfirmOnGlobalComplete === false &&
+          isDocusignComplete(docusignStatus)
+        ) && (
+        <p
+          className={`${variant === "section" ? "mt-3" : "mt-4"} rounded-lg bg-[#f3eef6] px-3 py-2 text-sm text-[#223645]`}
+        >
           DocuSign status: <strong>{docusignStatus}</strong>
           {docusignStatus === "SENT" || docusignStatus === "DELIVERED" ? (
             <>
@@ -3561,52 +4747,210 @@ function PmiDocuSignSection({
         </p>
       )}
 
-      {!pmiFilesReady && !signed && !stubMode && (
+      {!signedForUi && !stubMode && !filesReady && signingBlockedMessage && !blockSigningForRestart && (
+        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {signingBlockedMessage}
+        </p>
+      )}
+
+      {needsPmiFiles && !filesReady && !signedForUi && !stubMode && (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Upload at least one PMI evidence file above. Files are saved to secure storage
           first, then included in DocuSign when you start signing.
         </p>
       )}
 
-      {signed && (
-        <div className="mt-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-          Documents signed successfully
+      {showWitnessPendingFinalize && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm leading-relaxed text-amber-950">
+            The witness signature is recorded, but DocuSign has not finalized the
+            envelope yet — the PDF may still show <strong>In Process</strong>.
+            {resolvedStatus ? (
+              <>
+                {" "}
+                Current DocuSign status: <strong>{resolvedStatus}</strong>.
+              </>
+            ) : null}{" "}
+            Click <strong>Return to DocuSign</strong> and finish any remaining steps,
+            then click <strong>Finish</strong>, and refresh status here.
+          </p>
+          {signerProgress.length > 0 && (
+            <ul className="mt-2 space-y-1 text-sm text-amber-950">
+              {signerProgress.map((line, index) => (
+                <li key={`${line.label}-${line.email || index}`}>
+                  <strong>{line.label}</strong>
+                  {line.email ? ` (${line.email})` : ""}: {line.status}
+                  {line.done ? " ✓" : " — still required"}
+                </li>
+              ))}
+            </ul>
+          )}
+          {(statusContext?.pendingSigners?.length ?? 0) > 0 && (
+            <p className="mt-2 text-sm font-medium text-red-900">
+              Waiting on:{" "}
+              {statusContext?.pendingSigners
+                ?.map((s) => s.email || s.name || "unknown recipient")
+                .join(", ")}
+            </p>
+          )}
+          {allSignersDone && !envelopeComplete && (
+            <p className="mt-2 text-sm font-medium text-amber-950">
+              Both signatures are captured. Click <strong>Return to DocuSign</strong> — it will
+              try witness, claimant, or sender view so you can click <strong>Finish</strong>.
+              If this stays stuck, go to <strong>Stage 1</strong> and click{" "}
+              <strong>Sign again</strong> to create a fresh envelope.
+            </p>
+          )}
+          {statusContext?.rateLimited && (
+            <p className="mt-2 text-sm font-medium text-amber-900">
+              DocuSign rate limit reached — wait a few minutes before refreshing again.
+              You can still use <strong>Return to DocuSign</strong>.
+            </p>
+          )}
+          {statusContext?.webhookConfigured && !statusContext?.rateLimited && (
+            <p className="mt-2 text-sm text-amber-900">
+              Status updates automatically when DocuSign finalizes — reload this page after
+              clicking <strong>Finish</strong> in DocuSign (no need to spam Refresh).
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={handleReturnToDocusign}
+              disabled={loading}
+              className="rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              style={{ backgroundColor: CLAIMANT_ACTIVE }}
+            >
+              {loading ? "Please wait…" : "Return to DocuSign"}
+            </button>
+            <button
+              type="button"
+              onClick={refreshStatus}
+              disabled={loading}
+              className="rounded-lg border border-amber-400 bg-white px-5 py-2.5 text-sm font-semibold text-amber-950 transition hover:bg-amber-100 disabled:opacity-60"
+            >
+              {loading ? "Please wait…" : "Refresh status"}
+            </button>
+          </div>
         </div>
       )}
 
-      {!signed && stubMode && (
-        <div className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+      {showSignedSuccess && (
+        <div
+          className={`${variant === "section" ? "mt-5" : "mt-4"} rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800`}
+        >
+          {returnContext === "claimant-stage2"
+            ? "Witness signing completed successfully — the document is finalized."
+            : signedMessage}
+        </div>
+      )}
+
+      {returnContext === "claimant-stage2" && signedForUi && !stubMode && !needsStage1Restart && envelopeComplete && (
+        <div className={`${variant === "section" ? "mt-3" : "mt-4"}`}>
+          <button
+            type="button"
+            onClick={refreshStatus}
+            disabled={loading}
+            className="rounded-lg border border-[#627489] bg-white px-5 py-2.5 text-sm font-semibold text-[#263238] transition hover:bg-zinc-50 disabled:opacity-60"
+          >
+            {loading ? "Please wait…" : "Refresh status"}
+          </button>
+        </div>
+      )}
+
+      {needsStage1Restart && returnContext === "claimant-stage1" && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm leading-relaxed text-amber-950">
+            Your claimant signature is already saved, but that DocuSign envelope
+            finished <strong>without a witness step</strong>. Click{" "}
+            <strong>Sign again</strong> to create a new envelope, sign as the
+            claimant once more, then continue to Stage 2 for the witness.
+          </p>
+          <button
+            type="button"
+            onClick={handleStage1Restart}
+            disabled={loading}
+            className="mt-3 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+            style={{ backgroundColor: CLAIMANT_ACTIVE }}
+          >
+            {loading ? "Please wait…" : "Sign again"}
+          </button>
+        </div>
+      )}
+
+      {!signedForUi && stubMode && (
+        <div
+          className={`${variant === "section" ? "mt-5" : "mt-4"} rounded-xl bg-amber-50 p-4 text-sm text-amber-900`}
+        >
           <strong>Dev mode:</strong> DocuSign is not configured. Click below to simulate
           a successful signing.
           <button
             type="button"
             onClick={onStubComplete}
-            className="mt-3 block rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
-            style={{ backgroundColor: PURPLE }}
+            className={`mt-3 ${embeddedButton ? "flex h-[58px] w-full items-center justify-center rounded-[6px] border-2 px-5 text-[14px] font-normal text-white" : "block rounded-lg px-5 py-2.5 text-sm font-semibold"} transition hover:opacity-90`}
+            style={
+              embeddedButton
+                ? { backgroundColor: CLAIMANT_ACTIVE, borderColor: PURPLE }
+                : { backgroundColor: PURPLE }
+            }
           >
             Simulate signing
           </button>
         </div>
       )}
 
-      {!signed && !stubMode && (
-        <div className="mt-5 flex flex-wrap items-center gap-3">
+      {showSigningActions && (
+        <div
+          className={`${variant === "section" ? "mt-5 flex flex-wrap items-center gap-3" : "mt-4 flex flex-col gap-3"}`}
+        >
           <button
             type="button"
             onClick={() => handleStartSigning(false)}
-            disabled={loading || uploadsInProgress || !pmiFilesReady}
-            className="rounded-lg px-5 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-60"
-            style={{ backgroundColor: PURPLE }}
+            disabled={loading || (needsPmiFiles && uploadsInProgress) || !filesReady}
+            className={
+              embeddedButton
+                ? stage2Button
+                  ? "mt-8 flex h-[58px] w-full max-w-[340px] items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 font-medium transition hover:opacity-90 disabled:opacity-60"
+                  : "flex h-[58px] w-full items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 text-[14px] font-normal text-white transition hover:opacity-90 disabled:opacity-60"
+                : "rounded-lg px-5 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-60"
+            }
+            style={
+              embeddedButton
+                ? stage2Button
+                  ? {
+                      backgroundColor: CLAIMANT_STAGE2_BTN_BG,
+                      borderColor: CLAIMANT_ACTIVE,
+                      color: CLAIMANT_ACTIVE,
+                      fontSize: 16,
+                    }
+                  : { backgroundColor: CLAIMANT_ACTIVE, borderColor: PURPLE }
+                : { backgroundColor: PURPLE }
+            }
           >
+            {embeddedButton && !stage2Button && (
+              <Image src="/description-icon.svg" alt="" width={24} height={24} />
+            )}
+            {embeddedButton && stage2Button && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M8 18H16V16H8V18ZM8 14H16V12H8V14ZM6 22C5.45 22 4.97917 21.8042 4.5875 21.4125C4.19583 21.0208 4 20.55 4 20V4C4 3.45 4.19583 2.97917 4.5875 2.5875C4.97917 2.19583 5.45 2 6 2H14L20 8V20C20 20.55 19.8042 21.0208 19.4125 21.4125C19.0208 21.8042 18.55 22 18 22H6ZM13 9V4H6V20H18V9H13Z"
+                  fill={CLAIMANT_ACTIVE}
+                />
+              </svg>
+            )}
             {loading
               ? "Please wait…"
-              : uploadsInProgress
+              : needsPmiFiles && uploadsInProgress
                 ? "Waiting for uploads…"
-              : !pmiFilesReady
-                ? "Upload evidence first"
-              : docusignStatus === "SENT" || docusignStatus === "DELIVERED"
-                ? "Continue signing"
-                : "Sign with DocuSign"}
+                : !filesReady
+                  ? signingBlockedMessage
+                    ? "Complete details first"
+                    : needsPmiFiles
+                      ? "Upload evidence first"
+                      : resolvedPrimaryLabel
+                  : docusignStatus === "SENT" || docusignStatus === "DELIVERED"
+                    ? "Continue signing"
+                    : resolvedPrimaryLabel}
           </button>
           {(docusignStatus === "SENT" ||
             docusignStatus === "DELIVERED" ||
@@ -3614,7 +4958,7 @@ function PmiDocuSignSection({
             <button
               type="button"
               onClick={refreshStatus}
-              disabled={loading || uploadsInProgress || !pmiFilesReady}
+              disabled={loading || (needsPmiFiles && uploadsInProgress) || !filesReady}
               className="rounded-lg border border-[#627489] bg-white px-5 py-2.5 text-sm font-semibold text-[#263238] transition hover:bg-zinc-50 disabled:opacity-60"
             >
               Refresh status
@@ -3624,17 +4968,19 @@ function PmiDocuSignSection({
             <button
               type="button"
               onClick={() => handleStartSigning(true)}
-              disabled={loading || uploadsInProgress || !pmiFilesReady}
+              disabled={loading || (needsPmiFiles && uploadsInProgress) || !filesReady}
               className="rounded-lg border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
             >
               Restart signing
             </button>
           )}
-          {isDocusignComplete(docusignStatus) && !declarationSigned && (
+          {isDocusignComplete(docusignStatus) &&
+            !declarationSigned &&
+            returnContext !== "claimant-stage2" && (
             <button
               type="button"
               onClick={() => handleStartSigning(true)}
-              disabled={loading || uploadsInProgress || !pmiFilesReady}
+              disabled={loading || (needsPmiFiles && uploadsInProgress) || !filesReady}
               className="rounded-lg border border-[#802B7D] bg-white px-5 py-2.5 text-sm font-semibold text-[#802B7D] transition hover:bg-[#f3eef6] disabled:opacity-60"
             >
               Sign again
@@ -3643,15 +4989,41 @@ function PmiDocuSignSection({
         </div>
       )}
 
-      {!signed && !stubMode && statusContext?.multipleSigners && (
+      {showStage2RestartPrompt && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm leading-relaxed text-amber-950">
+            DocuSign shows this envelope as <strong>Completed</strong> after Stage 1
+            only — the witness never got a turn, so Stage 2 cannot open signing on
+            it. Go to Stage 1 and click <strong>Sign again</strong> to create a{" "}
+            <strong>new</strong> envelope. Sign as the claimant only (status should
+            stay <strong>Sent</strong>, not Completed), then return here for the
+            witness.
+          </p>
+          <button
+            type="button"
+            onClick={onGoToStage1}
+            className="mt-3 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            style={{ backgroundColor: CLAIMANT_ACTIVE }}
+          >
+            Go to Stage 1 — Sign again
+          </button>
+        </div>
+      )}
+
+      {showExtraSignersWarning && (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          This envelope has multiple signers from the DocuSign template setup. Click{" "}
-          <strong>Restart signing</strong> to create a fresh envelope for your account only.
+          This envelope has extra DocuSign recipients from an old template setup. Click{" "}
+          <strong>Restart signing</strong> to create a fresh envelope.
         </p>
       )}
 
-      {isDocusignComplete(docusignStatus) && !signed && !stubMode && (
-        <div className="mt-5 rounded-xl border border-[#d4c4d9] bg-[#f3eef6] p-4">
+      {autoConfirmOnGlobalComplete &&
+        isDocusignComplete(docusignStatus) &&
+        !signedForUi &&
+        !stubMode && (
+        <div
+          className={`${variant === "section" ? "mt-5" : "mt-4"} rounded-xl border border-[#d4c4d9] bg-[#f3eef6] p-4`}
+        >
           <p className="text-sm leading-relaxed text-[#223645]">
             DocuSign shows these documents as already signed. If you completed signing,
             confirm below to continue this step.
@@ -3662,7 +5034,7 @@ function PmiDocuSignSection({
               setError(null);
               onDeclarationSigned();
             }}
-            className="mt-3 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className={`mt-3 ${embeddedButton ? "w-full" : ""} rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90`}
             style={{ backgroundColor: PURPLE }}
           >
             Confirm and continue
@@ -3670,7 +5042,7 @@ function PmiDocuSignSection({
         </div>
       )}
 
-      {error && (
+      {error && !needsStage1Restart && !showStage2RestartPrompt && (
         <p
           className={`mt-4 rounded-lg px-3 py-2 text-sm ${
             docusignStatus === "DELIVERED" || docusignStatus === "SENT"
@@ -3696,7 +5068,15 @@ function PmiDocuSignSection({
           </a>
         </p>
       )}
-    </section>
+    </>
+  );
+
+  if (variant === "embedded") {
+    return <div>{body}</div>;
+  }
+
+  return (
+    <section className="mt-10 border-t border-zinc-200 pt-10">{body}</section>
   );
 }
 
@@ -4245,33 +5625,29 @@ function EvidenceUploadsPanel({
         Supporting evidence upload
       </h3>
       <p className="mt-4 text-[16px] font-medium leading-[28px] text-[#223645]">
-        Please upload documentation that supports your claim. Below is a list of documentation
-        we will need from you.
+      Upload documents showing your PMI relationships and income from PMI work.
       </p>
 
       <div className="mt-6 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
         <Image src="/warning-icon.svg" alt="" width={50} height={50} className="shrink-0" aria-hidden />
         <p className="text-[15px] font-medium leading-[28px] text-amber-900">
-          <strong>IMPORTANT!</strong> Please ensure all files uploaded are clear and readable.
-          If documents are not readable it may delay the processing of your application.
+          <strong>IMPORTANT!</strong>  Many practitioners do not have formal contracts with PMIs. This is normal and won't disqualify you.  Upload what you have - you can add more later through your member dashboard.
         </p>
       </div>
 
       {/* 1. Full Relationship Evidence */}
       <section className="mt-10">
-        <EvidenceSectionHeading number={1} title="Full Relationship Evidence" />
+        <EvidenceSectionHeading number={1} title="PMI Relationship Evidence" />
         <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
-          Please upload document showing your relationship with the Claimant. Acceptable
-          documents include:
+        Documents showing you worked with BUPA, AXA, or other PMIs:
         </p>
         <ul className="mt-4 space-y-1">
-          <EvidenceCheckItem>Signed letter of authority or Power of Attorney (POA)</EvidenceCheckItem>
-          <EvidenceCheckItem>Full birth certificate showing parents&apos; names</EvidenceCheckItem>
-          <EvidenceCheckItem>Marriage or civil partnership certificate</EvidenceCheckItem>
-          <EvidenceCheckItem>Decree absolute (if divorced)</EvidenceCheckItem>
-          <EvidenceCheckItem>Death certificate (if claiming as estate)</EvidenceCheckItem>
-          <EvidenceCheckItem>Court order appointing personal representative</EvidenceCheckItem>
-          <EvidenceCheckItem>Grant of probate or letters of administration</EvidenceCheckItem>
+          <EvidenceCheckItem>Provider agreements or recognition letters</EvidenceCheckItem>
+          <EvidenceCheckItem>Provider agreements or recognition letters</EvidenceCheckItem>
+          <EvidenceCheckItem>Provider numbers or portal screenshots</EvidenceCheckItem>
+          <EvidenceCheckItem>Emails about network membership or fees</EvidenceCheckItem>
+          <EvidenceCheckItem>Remittance advices showing PMI payments</EvidenceCheckItem>
+          <EvidenceCheckItem>Bank statements showing PMI income</EvidenceCheckItem>
         </ul>
         <div className="mt-5">
           <EvidenceFileDropzone
@@ -4287,13 +5663,12 @@ function EvidenceUploadsPanel({
 
       {/* 2. Fee level eligibility evidence */}
       <section className="mt-10">
-        <EvidenceSectionHeading number={2} title="Fee level eligibility evidence" />
+        <EvidenceSectionHeading number={2} title="Fee Restrictions Evidence" />
         <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
-          Documents showing your Fee level eligibility (refer to our guidance for more
-          information). Acceptable documents include:
+          Documents showing PMI fee levels and restrictions on your charging:
         </p>
         <ul className="mt-4 space-y-1">
-          <EvidenceCheckItem>Evidence of household income (most recent P60)</EvidenceCheckItem>
+          <EvidenceCheckItem>Fee schedules (especially showing changes over time)</EvidenceCheckItem>
           <EvidenceCheckItem>Bank statements (last 3 months)</EvidenceCheckItem>
           <EvidenceCheckItem>Confirmation of state benefits</EvidenceCheckItem>
           <EvidenceCheckItem>DWP letter confirming state pension</EvidenceCheckItem>

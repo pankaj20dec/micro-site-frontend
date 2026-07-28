@@ -286,12 +286,29 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
         if (!payMethod) throw new Error("Please choose a payment method.");
 
         if (payMethod === "stripe") {
+          if (intentError) {
+            throw new Error(intentError);
+          }
+          if (intentLoading) {
+            throw new Error("Payment form is still loading. Please wait a moment.");
+          }
           if (stripeStub || !stripePromise) {
             await createStripeIntent(fee, { confirmStub: true });
             onPaymentPaid();
             return;
           }
-          const paymentIntentId = await stripeFormRef.current?.confirm();
+          if (!clientSecret) {
+            throw new Error(
+              "Stripe checkout is not ready yet. Wait for the card form to appear, or refresh the page."
+            );
+          }
+          if (!stripeFormRef.current) {
+            throw new Error("Please enter your card details in the form above.");
+          }
+          const paymentIntentId = await stripeFormRef.current.confirm();
+          if (!paymentIntentId) {
+            throw new Error("Please complete card payment before continuing.");
+          }
           return { paymentIntentId };
         }
 
