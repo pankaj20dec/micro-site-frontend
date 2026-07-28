@@ -61,27 +61,15 @@ interface Props {
 
 function PayPalLogoMark() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-      <path
-        fill="#003087"
-        d="M8.3 19.5h3.1c2.1 0 3.5-1.3 3.8-3.2l1.6-10.2c.1-.6-.4-1.1-1-1.1H9.1c-.5 0-.9.3-1 1L5.2 18.4c-.1.6.3 1.1.9 1.1h2.2z"
-      />
-      <path
-        fill="#009CDE"
-        d="M18.2 5.5c-.3-.1-.6-.1-1-.1H11c-.5 0-.9.3-1 1l-1.2 7.6h3.1c2.1 0 3.5-1.3 3.8-3.2l1.5-4.3z"
-      />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/paypal-logo.svg" alt="" width={48} height={34} aria-hidden />
   );
 }
 
 function StripeLogoMark() {
   return (
-    <svg width="42" height="18" viewBox="0 0 60 25" aria-hidden>
-      <path
-        fill="#635BFF"
-        d="M59.64 14.28h-8.06c.18 1.08.88 1.85 2.34 1.85 1.17 0 1.98-.58 2.27-1.45h3.36c-.58 2.48-2.87 4.12-5.72 4.12-3.72 0-6.28-2.52-6.28-6.48 0-3.84 2.52-6.48 6.16-6.48 3.78 0 5.93 2.7 5.93 6.36 0 .42-.03.9-.1 1.08zm-5.72-4.98c-1.32 0-2.16.78-2.4 2.04h4.68c-.18-1.32-.9-2.04-2.28-2.04zM40.95 20.16c-1.02 0-1.86-.48-2.22-1.26l-.06 1.08h-3.06V6.6h3.24v5.58c.36-.78 1.14-1.26 2.1-1.26 2.64 0 4.26 2.04 4.26 5.52 0 3.36-1.68 5.52-4.26 5.52zm-.72-8.64c-1.38 0-2.34 1.08-2.34 2.88v.12c0 1.74.96 2.82 2.34 2.82 1.38 0 2.34-1.08 2.34-2.94 0-1.8-.96-2.88-2.34-2.88zM31.45 6.6h3.24v13.38h-3.24V6.6zm-4.74 13.56c-3.72 0-6.28-2.52-6.28-6.48 0-3.84 2.52-6.48 6.16-6.48 3.78 0 5.93 2.7 5.93 6.36 0 .42-.03.9-.1 1.08h-8.06c.18 1.08.88 1.85 2.34 1.85 1.17 0 1.98-.58 2.27-1.45h3.36c-.58 2.48-2.87 4.12-5.72 4.12zm-.66-10.5c-1.32 0-2.16.78-2.4 2.04h4.68c-.18-1.32-.9-2.04-2.28-2.04zM8.64 6.6l-3.3 13.38H2.1L0 6.6h3.36l1.38 7.38L6.12 6.6h2.52z"
-      />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/stripe-logo.svg" alt="" width={42} height={28} aria-hidden />
   );
 }
 
@@ -408,7 +396,7 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
                 }}
               >
                 <span className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border bg-white"
+                  <span className=""
                     style={{ borderColor: BORDER_INACTIVE }}
                   >
                     {method.logo}

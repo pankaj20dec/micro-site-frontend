@@ -14,16 +14,8 @@ interface Props {
 
 function PayPalMark() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden>
-      <path
-        fill="#003087"
-        d="M8.3 19.5h3.1c2.1 0 3.5-1.3 3.8-3.2l1.6-10.2c.1-.6-.4-1.1-1-1.1H9.1c-.5 0-.9.3-1 1L5.2 18.4c-.1.6.3 1.1.9 1.1h2.2z"
-      />
-      <path
-        fill="#009CDE"
-        d="M18.2 5.5c-.3-.1-.6-.1-1-.1H11c-.5 0-.9.3-1 1l-1.2 7.6h3.1c2.1 0 3.5-1.3 3.8-3.2l1.5-4.3z"
-      />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/paypal-logo.svg" alt="" width={24} height={24} aria-hidden />
   );
 }
 
