@@ -109,6 +109,96 @@ function membershipLabel(type: string) {
   return type === "ORGANISATION" ? "£500 membership" : "£250 membership";
 }
 
+function isValidGmcNumber(value: string) {
+  return /^([A-Za-z]\d{7}|\d{7})$/.test(value.trim());
+}
+
+function normalizeGmcNumberInput(value: string) {
+  const cleaned = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (!cleaned) return "";
+  // Allow optional leading letter, then up to 7 digits.
+  if (/^[A-Z]/.test(cleaned)) {
+    const letter = cleaned[0];
+    const digits = cleaned.slice(1).replace(/\D/g, "").slice(0, 7);
+    return `${letter}${digits}`;
+  }
+  return cleaned.replace(/\D/g, "").slice(0, 7);
+}
+
+function todayIsoDate() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function yearsAgoIsoDate(years: number) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+const DOB_MIN_ISO = yearsAgoIsoDate(120);
+const DOB_MAX_ISO = yearsAgoIsoDate(18);
+
+function parseIsoDateParts(isoDate: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) return null;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  if (y < 1000) return null; // reject years like 0002
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) {
+    return null;
+  }
+  return { y, m, d };
+}
+
+function dobValidationError(isoDate: string): string | null {
+  if (!isoDate.trim()) return "Please enter your date of birth.";
+  if (!parseIsoDateParts(isoDate)) return "Please enter a valid date of birth.";
+  const value = isoDate.trim();
+  if (value > todayIsoDate()) return "Date of birth cannot be a future date.";
+  if (value < DOB_MIN_ISO) return "Please enter a realistic date of birth.";
+  if (value > DOB_MAX_ISO) return "You must be at least 18 years old to register.";
+  return null;
+}
+
+function normalizePhoneInput(value: string) {
+  // Allow digits, spaces, hyphens, parentheses, and a leading +.
+  const cleaned = value.replace(/[^\d+\s()-]/g, "");
+  const hasPlus = cleaned.trimStart().startsWith("+");
+  const rest = cleaned.replace(/\+/g, "");
+  return hasPlus ? `+${rest}` : rest;
+}
+
+function phoneDigitCount(value: string) {
+  return value.replace(/\D/g, "").length;
+}
+
+function isValidPhoneNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (!/^\+?[\d\s()-]+$/.test(trimmed)) return false;
+  const digits = phoneDigitCount(trimmed);
+  return digits >= 10 && digits <= 15;
+}
+
+function phoneValidationError(value: string, required = true): string | null {
+  if (!value.trim()) {
+    return required ? "Please enter your phone number." : null;
+  }
+  if (!isValidPhoneNumber(value)) {
+    return "Please enter a valid phone number (10–15 digits).";
+  }
+  return null;
+}
+
 interface Props {
   application: Record<string, unknown> | null;
 }
@@ -926,6 +1016,24 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please complete all required fields.");
       return;
     }
+    if (gmcNumber.trim() && !isValidGmcNumber(gmcNumber)) {
+      setError("GMC number must be 7 digits, or a letter followed by 7 digits (e.g. 1234567 or A1234567).");
+      return;
+    }
+    if (!dob.trim()) {
+      setError("Please enter your date of birth.");
+      return;
+    }
+    const dobError = dobValidationError(dob);
+    if (dobError) {
+      setError(dobError);
+      return;
+    }
+    const phoneError = phoneValidationError(phone);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
 
     // When resuming an existing session the account already exists, so the
     // password fields stay blank — only validate them for brand-new accounts.
@@ -1099,8 +1207,17 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please enter your GMC number.");
       return;
     }
+    if (!isValidGmcNumber(gmcNumber)) {
+      setError("GMC number must be 7 digits, or a letter followed by 7 digits (e.g. 1234567 or A1234567).");
+      return;
+    }
     if (!practicePhone.trim()) {
       setError("Please enter your phone number.");
+      return;
+    }
+    const practicePhoneError = phoneValidationError(practicePhone);
+    if (practicePhoneError) {
+      setError(practicePhoneError);
       return;
     }
     if (!practiceSpecialty.trim()) {
@@ -1949,7 +2066,14 @@ function SupporterForm(p: any) {
         </div>
         <div>
           <Label>GMC Number</Label>
-          <input className={fieldCls} placeholder="GMC Number" value={p.gmcNumber} onChange={(e) => p.setGmcNumber(e.target.value)} />
+          <input
+            className={fieldCls}
+            placeholder="GMC Number"
+            inputMode="text"
+            maxLength={8}
+            value={p.gmcNumber}
+            onChange={(e) => p.setGmcNumber(normalizeGmcNumberInput(e.target.value))}
+          />
         </div>
         <div>
           <Label>Address</Label>
@@ -1957,11 +2081,26 @@ function SupporterForm(p: any) {
         </div>
         <div>
           <Label>Date of birth</Label>
-          <input type="date" className={fieldCls} placeholder="DD/MM/YYYY" value={p.dob} onChange={(e) => p.setDob(e.target.value)} />
+          <input
+            type="date"
+            className={fieldCls}
+            placeholder="DD/MM/YYYY"
+            min={DOB_MIN_ISO}
+            max={DOB_MAX_ISO}
+            value={p.dob}
+            onChange={(e) => p.setDob(e.target.value)}
+          />
         </div>
         <div>
           <Label>Phone number</Label>
-          <input type="tel" className={fieldCls} placeholder="Phone number" value={p.phone} onChange={(e) => p.setPhone(e.target.value)} />
+          <input
+            type="tel"
+            className={fieldCls}
+            placeholder="Phone number"
+            inputMode="tel"
+            value={p.phone}
+            onChange={(e) => p.setPhone(normalizePhoneInput(e.target.value))}
+          />
         </div>
         <div>
           <Label>Create Password</Label>
@@ -3639,8 +3778,10 @@ function PracticeInfoPanel(p: {
           <PracticeLabel>GMC number</PracticeLabel>
           <input
             className={fieldCls}
+            inputMode="text"
+            maxLength={8}
             value={p.gmcNumber}
-            onChange={(e) => p.setGmcNumber(e.target.value)}
+            onChange={(e) => p.setGmcNumber(normalizeGmcNumberInput(e.target.value))}
             placeholder="Enter GMC Number"
           />
         </div>
@@ -3649,8 +3790,9 @@ function PracticeInfoPanel(p: {
           <input
             type="tel"
             className={fieldCls}
+            inputMode="tel"
             value={p.phone}
-            onChange={(e) => p.setPhone(e.target.value)}
+            onChange={(e) => p.setPhone(normalizePhoneInput(e.target.value))}
             placeholder="Enter Phone number"
           />
         </div>
@@ -5367,7 +5509,7 @@ function EvidenceSectionHeading({
 }) {
   return (
     <h4 className="text-xl font-bold leading-[34px] text-[#660066] sm:text-[22px]">
-      {number} {title}
+      {number}. {title}
     </h4>
   );
 }
@@ -5580,6 +5722,8 @@ function EvidenceUploadsPanel({
     additional: 0,
   });
   const [noFeeEvidence, setNoFeeEvidence] = useState(false);
+  const [noRelationshipEvidence, setNoRelationshipEvidence] = useState(false);
+  const [noIncomeEvidence, setNoIncomeEvidence] = useState(false);
   const [incomePerYear, setIncomePerYear] = useState("");
 
   const setZone = useCallback((key: string, uploading: boolean) => {
@@ -5637,7 +5781,7 @@ function EvidenceUploadsPanel({
 
       {/* 1. Full Relationship Evidence */}
       <section className="mt-10">
-        <EvidenceSectionHeading number={1} title="PMI Relationship Evidence" />
+        <EvidenceSectionHeading number={1.} title="PMI Relationship Evidence" />
         <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
         Documents showing you worked with BUPA, AXA, or other PMIs:
         </p>
@@ -5659,21 +5803,26 @@ function EvidenceUploadsPanel({
             onFilesChange={(f) => mergeFiles("Full Relationship Evidence", f)}
           />
         </div>
+        <div className="mt-5">
+          <FipoCheckbox checked={noRelationshipEvidence} onChange={setNoRelationshipEvidence}>
+          I don't have documents now but confirm I worked with PMIs and will provide evidence later if needed
+          </FipoCheckbox>
+        </div>
       </section>
 
       {/* 2. Fee level eligibility evidence */}
       <section className="mt-10">
-        <EvidenceSectionHeading number={2} title="Fee Restrictions Evidence" />
+        <EvidenceSectionHeading number={2.} title="Fee Restrictions Evidence" />
         <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
           Documents showing PMI fee levels and restrictions on your charging:
         </p>
         <ul className="mt-4 space-y-1">
           <EvidenceCheckItem>Fee schedules (especially showing changes over time)</EvidenceCheckItem>
-          <EvidenceCheckItem>Bank statements (last 3 months)</EvidenceCheckItem>
-          <EvidenceCheckItem>Confirmation of state benefits</EvidenceCheckItem>
-          <EvidenceCheckItem>DWP letter confirming state pension</EvidenceCheckItem>
-          <EvidenceCheckItem>Universal Credit award letter</EvidenceCheckItem>
-          <EvidenceCheckItem>Council Tax Reduction award letter</EvidenceCheckItem>
+          <EvidenceCheckItem>Contract clauses prohibiting top-up fees</EvidenceCheckItem>
+          <EvidenceCheckItem>Correspondence about fee freezes or reductions</EvidenceCheckItem>
+          <EvidenceCheckItem>Letters threatening de-listing</EvidenceCheckItem>
+          <EvidenceCheckItem>Remittance advices showing actual fees paid</EvidenceCheckItem>
+          <EvidenceCheckItem>Your records comparing PMI fees vs self-pay rates</EvidenceCheckItem>
         </ul>
         <div className="mt-5">
           <EvidenceFileDropzone
@@ -5687,27 +5836,24 @@ function EvidenceUploadsPanel({
         </div>
         <div className="mt-5">
           <FipoCheckbox checked={noFeeEvidence} onChange={setNoFeeEvidence}>
-            I do not have any evidence to upload at this stage. I understand that my
-            application will proceed without this evidence and I may be asked to provide it
-            later.
+          I don't have documents now but confirm PMIs controlled my fees and prohibited top-ups. I will provide evidence later if needed
           </FipoCheckbox>
         </div>
       </section>
 
       {/* 3. Income Evidence */}
       <section className="mt-10">
-        <EvidenceSectionHeading number={3} title="Income Evidence" />
+        <EvidenceSectionHeading number={3.} title="Income Evidence" />
         <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
-          Documents showing your income and any benefits that you are currently receiving
-          (e.g. Payslip, P60 etc.). Acceptable documents include:
+           Documents showing your income level from PMI work (for damages calculation):
         </p>
         <ul className="mt-4 space-y-1">
-          <EvidenceCheckItem>Recent payslip(s)</EvidenceCheckItem>
-          <EvidenceCheckItem>P60 from employer</EvidenceCheckItem>
-          <EvidenceCheckItem>Self-assessment tax return</EvidenceCheckItem>
-          <EvidenceCheckItem>Bank statements (last 3 months)</EvidenceCheckItem>
-          <EvidenceCheckItem>Benefit award letters</EvidenceCheckItem>
-          <EvidenceCheckItem>Accountant&apos;s letter confirming income</EvidenceCheckItem>
+          <EvidenceCheckItem>Practice accounts showing PMI income breakdown</EvidenceCheckItem>
+          <EvidenceCheckItem>Tax returns (redact unrelated personal information if you prefer)</EvidenceCheckItem>
+          <EvidenceCheckItem>Annual summaries from PMIs</EvidenceCheckItem>
+          <EvidenceCheckItem>Accountant's letter summarising PMI income</EvidenceCheckItem>
+          <EvidenceCheckItem>Bank statements showing PMI payments (redact non-PMI transactions)</EvidenceCheckItem>
+          <EvidenceCheckItem>Company/LLP accounts (if operating through entity)</EvidenceCheckItem>
         </ul>
 
         <div className="mt-5 flex gap-3 rounded-xl border border-[#d4c4d9] bg-[#f3eef6] p-4">
@@ -5723,9 +5869,7 @@ function EvidenceUploadsPanel({
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           <p className="text-[15px] font-medium leading-[28px] text-[#223645]">
-            <strong className="font-bold">CONFIDENTIAL:</strong> Financial documents are only
-            used to assess your eligibility for funding and will not be shared with any third
-            parties.
+            <strong className="font-bold">CONFIDENTIAL:</strong> Financial documents are encrypted, shared only with our legal team and expert economists, and redacted before any court disclosure.
           </p>
         </div>
 
@@ -5759,12 +5903,16 @@ function EvidenceUploadsPanel({
             </svg>
             <p className="mt-4 text-sm font-bold text-[#660066]">Self-Confirmation</p>
             <p className="mt-2 text-sm leading-relaxed text-[#223645]">
-              If you are unable to provide the documents listed, you can submit a
-              self-confirmation of your household income using the field below.
+              (if you prefer not to upload documents now)
+              You can choose to self-certify your income details now and provide supporting documents later, if required.
             </p>
           </div>
         </div>
-
+        <div className="mt-5">
+          <FipoCheckbox checked={noIncomeEvidence} onChange={setNoIncomeEvidence}>
+          I prefer not to upload income documents at this stage. My approximate average annual income from PMI work during peak years was
+          </FipoCheckbox>
+        </div>
         <div className="mt-5 max-w-md">
           <PracticeLabel>What is your total annual income?</PracticeLabel>
           <div className="relative mt-1">
@@ -5784,16 +5932,18 @@ function EvidenceUploadsPanel({
             </span>
           </div>
         </div>
+       
         <p className="mt-4 text-[15px] font-medium leading-[28px] text-[#627489]">
-          All evidence provided will be treated as confidential and kept secure.
+           Documentary proof may be requested later for precise damages calculation.
         </p>
       </section>
 
       {/* 4. Additional Evidence */}
       <section className="mt-10">
-        <EvidenceSectionHeading number={4} title="Additional Evidence [Optional]" />
+        <EvidenceSectionHeading number={4.} title="Additional Evidence (Optional)" />
         <p className="mt-3 text-[15px] font-medium leading-[28px] text-[#223645]">
-          Any other documentation that you feel would be relevant to your application.
+          Any other supporting documents (correspondence with colleagues, professional
+          association guidance, evidence of practice impact, etc.)
         </p>
         <div className="mt-5">
           <EvidenceFileDropzone
