@@ -404,6 +404,9 @@ export default function AccordionRegistration({ application }: Props) {
       (str(application?.docusignStatus) === "COMPLETED" &&
         !!str(witnessSaved.email))
   );
+  const [witnessInviteSent, setWitnessInviteSent] = useState(
+    !!str(witnessSaved.invitationSentAt) || !!witnessSaved.declarationSigned
+  );
   const [witnessStubComplete, setWitnessStubComplete] = useState(false);
 
   function applyPmiFromRecord(pmi: Record<string, unknown>) {
@@ -1365,8 +1368,10 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please upload witness photo ID and proof of address.");
       return;
     }
-    if (!witnessSigned && !witnessStubComplete) {
-      setError("Please complete witness signing on the Litigation Management Agreement.");
+    if (!witnessSigned && !witnessStubComplete && !witnessInviteSent) {
+      setError(
+        "Please send the Litigation Management Agreement to your witness for signature before continuing."
+      );
       return;
     }
     setClaimantDone((prev) => {
@@ -1689,8 +1694,25 @@ export default function AccordionRegistration({ application }: Props) {
             witnessUploadError={witnessUploadError}
             setWitnessUploadError={setWitnessUploadError}
             witnessSigned={witnessSigned}
+            witnessInviteSent={witnessInviteSent}
+            onWitnessInviteSent={() => {
+              setWitnessInviteSent(true);
+              saveStep({
+                stage2Data: {
+                  ...savedStage2,
+                  witness: {
+                    fullName: witnessName.trim(),
+                    email: witnessEmail.trim(),
+                    address: witnessAddress.trim(),
+                    invitationSentAt: new Date().toISOString(),
+                    declarationSigned: witnessSigned || witnessStubComplete,
+                  },
+                },
+              }).catch(() => null);
+            }}
             onWitnessSigned={() => {
               setWitnessSigned(true);
+              setWitnessInviteSent(true);
               saveStep({
                 stage2Data: {
                   ...savedStage2,
@@ -1699,12 +1721,15 @@ export default function AccordionRegistration({ application }: Props) {
                     email: witnessEmail.trim(),
                     address: witnessAddress.trim(),
                     declarationSigned: true,
+                    invitationSentAt:
+                      str(witnessSaved.invitationSentAt) || new Date().toISOString(),
                   },
                 },
               }).catch(() => null);
             }}
             onWitnessUnsigned={() => {
               setWitnessSigned(false);
+              setWitnessInviteSent(false);
               setWitnessStubComplete(false);
               setSaveMsg(null);
               saveStep({
@@ -1715,6 +1740,7 @@ export default function AccordionRegistration({ application }: Props) {
                     email: witnessEmail.trim(),
                     address: witnessAddress.trim(),
                     declarationSigned: false,
+                    invitationSentAt: null,
                   },
                 },
               }).catch(() => null);
@@ -1728,6 +1754,9 @@ export default function AccordionRegistration({ application }: Props) {
                     email: witnessEmail.trim(),
                     address: witnessAddress.trim(),
                     declarationSigned: witnessSigned || witnessStubComplete,
+                    invitationSentAt: witnessInviteSent
+                      ? str(witnessSaved.invitationSentAt) || new Date().toISOString()
+                      : undefined,
                   },
                 },
               });
@@ -1736,6 +1765,7 @@ export default function AccordionRegistration({ application }: Props) {
             onWitnessStubComplete={() => {
               setWitnessStubComplete(true);
               setWitnessSigned(true);
+              setWitnessInviteSent(true);
               saveStep({
                 stage2Data: {
                   ...savedStage2,
@@ -1744,6 +1774,7 @@ export default function AccordionRegistration({ application }: Props) {
                     email: witnessEmail.trim(),
                     address: witnessAddress.trim(),
                     declarationSigned: true,
+                    invitationSentAt: new Date().toISOString(),
                   },
                 },
               }).catch(() => null);
@@ -2214,6 +2245,8 @@ function ClaimantMemberAccordion({
   witnessUploadError,
   setWitnessUploadError,
   witnessSigned,
+  witnessInviteSent,
+  onWitnessInviteSent,
   onWitnessSigned,
   onWitnessUnsigned,
   onBeforeWitnessSign,
@@ -2250,6 +2283,8 @@ function ClaimantMemberAccordion({
   witnessUploadError: string | null;
   setWitnessUploadError: (value: string | null) => void;
   witnessSigned: boolean;
+  witnessInviteSent: boolean;
+  onWitnessInviteSent: () => void;
   onWitnessSigned: () => void;
   onWitnessUnsigned: () => void;
   onBeforeWitnessSign?: () => Promise<void>;
@@ -2359,6 +2394,8 @@ function ClaimantMemberAccordion({
                 docusignStatus={docusignStatus}
                 onDocusignStatusChange={onDocusignStatusChange}
                 witnessSigned={witnessSigned}
+                witnessInviteSent={witnessInviteSent}
+                onWitnessInviteSent={onWitnessInviteSent}
                 onWitnessSigned={onWitnessSigned}
                 onWitnessUnsigned={onWitnessUnsigned}
                 onBeforeWitnessSign={onBeforeWitnessSign}
@@ -2747,6 +2784,8 @@ function ClaimantStage2Panel({
   docusignStatus,
   onDocusignStatusChange,
   witnessSigned,
+  witnessInviteSent,
+  onWitnessInviteSent,
   onWitnessSigned,
   onWitnessUnsigned,
   onBeforeWitnessSign,
@@ -2775,6 +2814,8 @@ function ClaimantStage2Panel({
   docusignStatus: string;
   onDocusignStatusChange: (status: string) => void;
   witnessSigned: boolean;
+  witnessInviteSent: boolean;
+  onWitnessInviteSent: () => void;
   onWitnessSigned: () => void;
   onWitnessUnsigned: () => void;
   onBeforeWitnessSign?: () => Promise<void>;
@@ -3060,14 +3101,16 @@ function ClaimantStage2Panel({
             autoConfirmOnGlobalComplete={false}
             sessionKey="stage2_witness_docusign_pending"
             returnContext="claimant-stage2"
-            primaryButtonLabel="Review Litigation Agreement"
+            primaryButtonLabel="Send to witness for signature"
             signedMessage="Witness signing completed successfully"
-            description="The witness signs separately in Stage 2 — click Review Litigation Agreement below and pass the device to your witness. The witness will see a Sign Here tab below your signature (not during Stage 1)."
+            description="Enter witness details above, then send them an email invitation to sign the Litigation Management Agreement in DocuSign. You can continue your registration while they sign. When they finish, DocuSign returns them to the homepage."
             docusignStatus={docusignStatus}
             onStatusChange={onDocusignStatusChange}
             declarationSigned={witnessSigned}
             onDeclarationSigned={onWitnessSigned}
             onClearSigned={onWitnessUnsigned}
+            witnessInviteSent={witnessInviteSent}
+            onWitnessInviteSent={onWitnessInviteSent}
             uploadsInProgress={photoUploading || proofUploading}
             signingReady={witnessSigningReady}
             signingBlockedMessage={
@@ -4239,6 +4282,8 @@ function RegistrationDocuSignSection({
   onStubModeChange,
   stubComplete,
   onStubComplete,
+  witnessInviteSent = false,
+  onWitnessInviteSent,
 }: {
   docusignStatus: string;
   onStatusChange: (status: string) => void;
@@ -4263,7 +4308,13 @@ function RegistrationDocuSignSection({
   requestSigningFn?: (
     forceNew: boolean,
     returnBaseUrl: string
-  ) => Promise<StartDocusignResponse & { alreadyCompleted?: boolean }>;
+  ) => Promise<
+    StartDocusignResponse & {
+      alreadyCompleted?: boolean;
+      emailSent?: boolean;
+      message?: string;
+    }
+  >;
   embeddedButtonStyle?: "stage1" | "stage2";
   witnessEmail?: string;
   onGoToStage1?: () => void;
@@ -4274,6 +4325,8 @@ function RegistrationDocuSignSection({
   onStubModeChange: (stub: boolean) => void;
   stubComplete: boolean;
   onStubComplete: () => void;
+  witnessInviteSent?: boolean;
+  onWitnessInviteSent?: () => void;
 }) {
   const needsPmiFiles = requirePmiFiles !== false;
   const filesReady = (needsPmiFiles ? pmiFilesReady : true) && signingReady !== false;
@@ -4372,15 +4425,15 @@ function RegistrationDocuSignSection({
     !expectedMultiSignerSetup &&
     ((statusContext?.signers?.length ?? 0) > 2 ||
       (statusContext?.pendingSigners?.length ?? 0) > 0);
-  // Stage 2: only offer Review Litigation Agreement when the envelope is still
-  // open (SENT/DELIVERED). COMPLETED envelopes must use Sign again instead.
+  // Stage 2: email invitation (or resend) while envelope is open for the witness.
   const showSigningActions =
-    !stubMode &&
     !signedForUi &&
     (returnContext === "claimant-stage2"
       ? !showStage2RestartPrompt &&
-        (stage1ReadyForWitness || (!statusCheckedForRestart && stage1Complete))
-      : !blockSigningForRestart);
+        (stubMode ||
+          stage1ReadyForWitness ||
+          (!statusCheckedForRestart && stage1Complete))
+      : !stubMode && !blockSigningForRestart);
 
   function markNeedsStage1Restart(needs: boolean) {
     setNeedsStage1Restart(needs);
@@ -4606,6 +4659,11 @@ function RegistrationDocuSignSection({
       return { redirected: false as const, data };
     }
 
+    // Witness email flow — do not send the claimant into DocuSign.
+    if ("emailSent" in data && data.emailSent) {
+      return { redirected: false as const, data };
+    }
+
     if (data.signingUrl) {
       sessionStorage.setItem(sessionKey, "1");
       window.location.assign(data.signingUrl);
@@ -4785,6 +4843,15 @@ function RegistrationDocuSignSection({
           return;
         }
         onDeclarationSigned();
+        return;
+      }
+
+      if (
+        returnContext === "claimant-stage2" &&
+        ("emailSent" in data ? data.emailSent : false)
+      ) {
+        onWitnessInviteSent?.();
+        setError(null);
         return;
       }
 
@@ -4987,6 +5054,29 @@ function RegistrationDocuSignSection({
         </div>
       )}
 
+      {returnContext === "claimant-stage2" &&
+        witnessInviteSent &&
+        !showSignedSuccess &&
+        !showStage2RestartPrompt && (
+        <div className="mt-4 rounded-xl border border-[#d4c4d9] bg-[#f3eef6] px-4 py-3 text-sm leading-relaxed text-[#223645]">
+          <p className="font-semibold text-[#660066]">Witness invitation sent</p>
+          <p className="mt-1">
+            A signing link was emailed to{" "}
+            <strong>{witnessEmail?.trim() || "the witness"}</strong>. You can continue
+            this registration while they sign. When they finish in DocuSign, they are
+            returned to the homepage.
+          </p>
+          <button
+            type="button"
+            onClick={refreshStatus}
+            disabled={loading}
+            className="mt-3 rounded-lg border border-[#802B7D] bg-white px-4 py-2 text-sm font-semibold text-[#802B7D] transition hover:bg-[#faf7fb] disabled:opacity-60"
+          >
+            {loading ? "Please wait…" : "Refresh witness status"}
+          </button>
+        </div>
+      )}
+
       {returnContext === "claimant-stage2" && signedForUi && !stubMode && !needsStage1Restart && envelopeComplete && (
         <div className={`${variant === "section" ? "mt-3" : "mt-4"}`}>
           <button
@@ -5020,7 +5110,7 @@ function RegistrationDocuSignSection({
         </div>
       )}
 
-      {!signedForUi && stubMode && (
+      {!signedForUi && stubMode && returnContext !== "claimant-stage2" && (
         <div
           className={`${variant === "section" ? "mt-5" : "mt-4"} rounded-xl bg-amber-50 p-4 text-sm text-amber-900`}
         >
@@ -5090,9 +5180,13 @@ function RegistrationDocuSignSection({
                     : needsPmiFiles
                       ? "Upload evidence first"
                       : resolvedPrimaryLabel
-                  : docusignStatus === "SENT" || docusignStatus === "DELIVERED"
-                    ? "Continue signing"
-                    : resolvedPrimaryLabel}
+                  : returnContext === "claimant-stage2" && witnessInviteSent
+                    ? "Resend invitation email"
+                    : docusignStatus === "SENT" || docusignStatus === "DELIVERED"
+                      ? returnContext === "claimant-stage2"
+                        ? resolvedPrimaryLabel
+                        : "Continue signing"
+                      : resolvedPrimaryLabel}
           </button>
           {(docusignStatus === "SENT" ||
             docusignStatus === "DELIVERED" ||
