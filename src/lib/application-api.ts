@@ -360,7 +360,14 @@ export async function startDocusignSigning(
 export async function startWitnessDocusignSigning(
   returnBaseUrl: string,
   witness: { email: string; name: string; address?: string }
-): Promise<StartDocusignResponse & { witnessStatus?: string; alreadyCompleted?: boolean }> {
+): Promise<
+  StartDocusignResponse & {
+    witnessStatus?: string;
+    alreadyCompleted?: boolean;
+    emailSent?: boolean;
+    message?: string;
+  }
+> {
   const res = await fetch(`${getApiBase()}/api/docusign/witness/send`, {
     method: "POST",
     headers: authHeaders(),
@@ -398,7 +405,12 @@ export async function startWitnessDocusignSigning(
     }
     throw err;
   }
-  return data as StartDocusignResponse & { witnessStatus?: string; alreadyCompleted?: boolean };
+  return data as StartDocusignResponse & {
+    witnessStatus?: string;
+    alreadyCompleted?: boolean;
+    emailSent?: boolean;
+    message?: string;
+  };
 }
 
 export async function fetchSignedDocusignPdf(): Promise<Blob> {
