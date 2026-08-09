@@ -64,12 +64,12 @@ const CLAIMANT_SECTIONS: { id: ClaimantSectionId; label: string }[] = [
   {
     id: "stage1",
     label:
-      "Stage 1: approval of the terms of FIPO\u2019s engagement with Harcus Parker and Counsel",
+      "Stage 1: execution of the terms of your engagement with Harcus Parker and Counsel",
   },
   {
     id: "stage2",
     label:
-      "Stage 2: execution of a power of attorney [DP26.1]in FIPO\u2019s favour authorising FIPO to bring proceedings against the PMIs on your behalf and agreement to the Litigation Management Agreement.",
+      "Stage 2: execution of a Power of Attorney in FIPO\u2019s favour authorising FIPO to manage the proceedings against the PMIs on your behalf and agreement to the Litigation Management Agreement.",
   },
 ];
 
@@ -2542,7 +2542,7 @@ function ClaimantStage1Panel({
   const [envelopeNeedsRestart, setEnvelopeNeedsRestart] = useState(false);
   const bullets = [
     "If you paid \u00a3250 to become a Supporter Member then the fee which will be deducted from any damages associated with your claim will be 32.5% + VAT; and if you paid \u00a3500 then the fee deducted from any damages associated with your claim will be 30% + VAT.",
-    "FIPO will instruct Harcus Parker as its and your solicitors, who will in turn instruct Suzanne Rab, a barrister in independent practice at Matrix Chambers, who FIPO has instructed directly;",
+    "Harcus Parker will in turn instruct Suzanne Rab, a barrister in independent practice at Matrix Chambers, who FIPO has instructed directly;",
     "FIPO will use the action group\u2019s funds, which include your subscriptions, to contribute to legal costs during the \u2018Pre-Action Phase\u2019 described in the engagement letter and will use any balance to pay towards the cost of ATE insurance.",
   ];
   const signedPdfReady =
@@ -2564,11 +2564,8 @@ function ClaimantStage1Panel({
 
       <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <p className="max-w-[752px] text-[16px] font-normal leading-[30px] text-[#223645]">
-          The reason you are asked to approve this is that the structure of the
-          group is that you provide FIPO with authority to run the claim on your
-          behalf. You therefore need to know how you will be charged, through
-          FIPO executing the agreements for you, because this has a direct impact
-          on you and in particular on how much you will be charged.
+        These documents are very important, because they contain the formal terms of your engagement of Harcus Parker as your solicitors and record how much you will be charged if your claim succeeds and they explain the structure of the group and how you will provide FIPO with authority to run the claim on your
+          behalf. The engagement letter annexes a number of documents, including a Damages-Based Agreement (DBA), a Power of Attorney and the Litigation Management Agreement. In order to highlight the separate importance of the Power of Attorney and the Litigation Management Agreement, we ask you specifically to approve them in the next section. For an explanation of why we are structuring the claim in the way we are, see here. 
         </p>
         <div
           className="flex h-[150px] w-[160px] shrink-0 items-center justify-center rounded-lg"
@@ -2672,15 +2669,15 @@ function ClaimantStage1Panel({
 
 const CLAIMANT_STAGE2_LEFT_BULLETS = [
   "Please note that the delegation of authority to FIPO is complete and extends to decisions about settlement as well as strategy and day to day conduct.",
-  "Please also note that if you die or become incapable while the Claims are ongoing, the power of attorney will be revoked. It will be necessary for your attorney under an LPA or your personal representatives to execute a further power of attorney.",
-  "Please note also that if you were paid through another entity we may need to come back to you to ask that you procure that the entity executes a further power of attorney.",
-  "The power of attorney should be signed through docusign and requires a witness",
+  "Please also note that if you die or become incapable while the Claims are ongoing, the Power of Attorney will be revoked. It will be necessary for your attorney under an LPA or your personal representatives to execute a further Power of Attorney.",
+  "Please note also that if you were paid through another entity we may need to come back to you to ask that you procure that the entity executes a further Power of Attorney.",
+  "The Power of Attorney should be signed through docusign and requires a witness",
 ];
 
 const CLAIMANT_STAGE2_LMA_FEATURES = [
-  "Confirmation of the practical impact of the power of attorney",
+  "Confirmation of the practical impact of the Power of Attorney",
   "A declaration of common purpose with the other medical professionals who join the action group",
-  "Your agreement to cooperate with FIPO in the progression of the Claims, including by disclosing documents to FIPO so that it can comply with the formal requirements of the court\u2019s rules;",
+  "Your agreement to cooperate with FIPO and your fellow group members in the progression of the Claims, including by disclosing documents to FIPO so that it can ensure that youcomply with the formal requirements of the court\u2019s rules;",
   "Your agreement as to how your information will be used;",
   "Your agreement as to how cost and theoretical risk will be shared; and",
   "Your agreement as to the distribution of damages.",
@@ -2913,7 +2910,7 @@ function ClaimantStage2Panel({
         style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
       >
         Please note that this will have the effect of granting to FIPO the right
-        to bring your claim. We remind you again of the implications of becoming
+        to mange your claim in parallel with those of the other group members. We remind you again of the implications of becoming
         a claimant member, which can be read{" "}
         <Link
           href="/explanations#key-implications"
@@ -2928,7 +2925,7 @@ function ClaimantStage2Panel({
         className="mt-4 font-normal"
         style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
       >
-        The power of attorney is your way of giving authority to FIPO to act as
+        The Power of Attorney is your way of giving authority to FIPO to act as
         the claimant in the intended litigation.
       </p>
 
@@ -3681,12 +3678,12 @@ function LegalDocumentIntroSection({ membershipType }: { membershipType: string 
         You are now completing the formal legal registration to participate in the collective action. You should proceed only if you are a medical practitioner who may be eligible to participate. By proceeding, you confirm that you are a registered medical practitioner who has provided services under private medical insurance arrangements. If you are employed by or represent the defendant insurance companies BUPA Insurance Limited or AXA PPP you should not proceed.
         </p>
         <p>
-        This section is prepared by our solicitors Harcus Parker and its counsel Suzanne Rab and involves:
+        This section is prepared by solicitors Harcus Parker and its counsel Suzanne Rab and involves:
         </p>
         <ul className="list-disc space-y-1 pl-6">
           <li>Providing information about your practice and PMI relationships</li>
           <li>
-          Reviewing and signing legal documents (Power of Attorney, Litigation Management Agreement)
+          Reviewing and signing legal documents (the engagement letter, DBA, Power of Attorney,- and Litigation Management Agreement)
           </li>
           <li>Confirming your understanding of the process and your rights</li>
         </ul>
@@ -3730,7 +3727,7 @@ function LegalDocumentIntroSection({ membershipType }: { membershipType: string 
       Through Step 2
       </p>
       <p className="mt-6 text-[16px] font-medium leading-[28px] text-[#263238]">
-      Through Step 2 you will be asked to provide the information that Harcus Parker initially require for us to put your claim to the defendants
+      Through Step 2 you will be asked to provide the information that Harcus Parker initially requires for us to put your claim to the defendants
       </p>
       <p className="mt-6 text-[16px] font-medium leading-[28px] text-[#263238]">
       You should first have familiarised yourself with the implications of becoming a claimant member, which can be read here[DP1]  and with the descriptions and Important Legal Notices which appear on the Action Group’s microsite.
@@ -3741,10 +3738,10 @@ function LegalDocumentIntroSection({ membershipType }: { membershipType: string 
       </p>
       <ul className="mt-3 list-disc space-y-2 pl-6 text-[16px] font-medium leading-[28px] text-[#263238]">
         <li>
-        To approve the terms of FIPO’s engagement with its solicitors, Harcus Parker, and its counsel, Suzanne Rab, since the terms will be executed for you and on your behalf, and the legal team will in substance be acting for you and therefore  have a direct bearing on what you may receive from your claim (if you paid £250 at Step 1, then the fee deducted will be 32.5% + VAT; and if you paid £500 then the fee deducted will be 30% + VAT);
+        To approve the terms of your engagement with Harcus Parker,- and its counsel, Suzanne Rab, and in particular the fee that will be charged if your claim succeeds (if you paid £250 at Step 1, then the fee deducted will be 32.5% + VAT; and if you paid £500 then the fee deducted will be 30% + VAT);
         </li>
         <li>
-        To execute a power of attorney in FIPO’s favour authorising FIPO to bring proceedings against the PMIs on your behalf and to agree to Harcus Parker's and Counsel's retainers on your behalf;
+        To execute a Power of Attorney in FIPO’s favour authorising FIPO to manage the proceedings against the PMIs on your behalf;
         </li>
         <li>To sign a “Litigation Management Agreement which regulates the relationship between you, FIPO, Harcus Parker as the solicitors who will be acting on your behalf and other members of the FIPO Fair Pay Action Group; and</li>
         <li>To sign a declaration which records your understanding of the main features of the arrangements. Please note that you can read a fuller description and review the documents in full here.</li>

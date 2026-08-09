@@ -96,13 +96,13 @@ export const explanationsHowToJoin = {
     },
     {
       number: "02",
-      lead: "Approve the terms of FIPO's engagement with Harcus Parker and Counsel on its and your behalf.",
-      body: "This is very important, as the intention is that FIPO will execute the engagement on your behalf. It will take up the administrative burden of running the litigation for you, but the litigation will in substance remain yours, and Harcus Parker will be acting for you, so you should ensure that you are happy with the terms, which will be contracted on your behalf. In particular, you should note that the DBA with Harcus Parker will operate as though it were agreed with each member of the group. The key financial term of the DA is that if your claim succeeds, the damages associated with your claim will be reduced by a fee of 32.5% if you paid a subscription of £250 and of 30% if you paid a subscription of £500.",
+      lead: "Approve the terms of your engagement with Harcus Parker and Counsel, as well as the Power of Attorney you will grant to FIPO.",
+      body: "This is very important, as the intention is that FIPO will take up the administrative burden of running the litigation for you, but the litigation will in substance remain yours, and Harcus Parker will be acting for you. All of the relevant documents will be executed by each member of the group. The key financial term of the DBA is that if your claim succeeds, the damages associated with your claim will be reduced by a fee of 32.5% if you paid a subscription of £250 and of 30% if you paid a subscription of £500.",
     },
     {
       number: "03",
       lead: "Execute a Power of Attorney in FIPO's favour",
-      body: "authorising FIPO to bring proceedings against the PMIs on your behalf and to agree to Harcus Parker's and Counsel's retainers, and in particular to enter into a DBA with Harcus Parker on your behalf, as a result of which the damages associated with your claim will be reduced by a fee of 32.5% if you paid a subscription of £250 and of 30% if you paid a subscription of £500.",
+      body: "authorising FIPO to manage the proceedings against the PMIs on your behalf day to day.",
     },
     {
       number: "04",
@@ -121,8 +121,8 @@ export const explanationsClaimStructure = {
   id: "claim-structure",
   title: "How the Claim Is Structured",
   paragraphs: [
-    "The Claim is brought as a coordinated group action. FIPO acts as the claimant representative and instructs Harcus Parker, who lead the litigation, together with specialist counsel. Each member's individual claim remains their own, but the cases are run together under a single, shared strategy.",
-    "This gives members the benefit of collective scale — shared costs, shared evidence and a single, well-resourced Legal Team — while keeping the conduct of the litigation in the hands of experienced solicitors rather than individual practitioners.",
+    "When you join the Action Group you agree to retainer documents, including a Damages-Based Agreement with the action group’s solicitors, Harcus Parker; you also, sign a power of attorney authorising FIPO to manage your claim on your behalf and those of the other members of the group. You will participate in the litigation through FIPO, but will still be involved and will retain responsibility for giving disclosure and evidence if necessary.",
+    "You will also sign a Litigation Management Agreement (LMA), discussed below, FIPO, Harcus Parker and the other practitioners who join the group. The LMA sets out the rules governing how the claim is run, how decisions are made, and how any damages will be distributed.",
   ],
 } as const;
 
@@ -181,13 +181,13 @@ export const explanationsCostsRisk = {
     },
     {
       number: "02",
-      lead: "FIPO's Primary Liability:",
-      body: "FIPO accepts that it has primary responsibility for any adverse costs that are not covered by insurance.",
+      lead: "FIPO's Potential Liability:",
+      body: "FIPO accepts that it has a potential responsibility for any adverse costs that are not covered by insurance.",
     },
     {
       number: "03",
       lead: "Third-Party Funder:",
-      body: "Any third-party funder of the Claim also accepts responsibility for adverse costs and — as an institution — is a more accessible target than thousands of individual practitioners.",
+      body: "Any third-party funder of the claim also may face an application to be made responsibe for adverse costs and — as an institution — is likely to be a more accessible target than thousands of individual practitioners.",
     },
     {
       number: "04",
@@ -223,9 +223,9 @@ export const explanationsKeyImplications = {
         {
           text: "But you will be protected in at least three ways:",
           children: [
-            "FIPO will not issue proceedings unless it has arranged a suitable policy of After The Event insurance to protect you from the impact of an adverse costs judgment;",
-            "FIPO acknowledges that it itself will have the primary responsibility to a pay adverse costs, should the insurance fail or be insufficient; and",
-            "Any third-party funder of the claim will similarly be responsible for adverse costs, and will be an easier target than thousands of individuals.",
+            "We will not issue proceedings on your behalf unless we have arranged a suitable policy of After The Event insurance to protect you from the impact of an adverse costs judgment;",
+            "FIPO acknowledges that it itself has a potential responsibility to a pay adverse costs, should the insurance fail or be insufficient; and",
+            "Any third-party funder of the claim may similarly be made responsible for adverse costs, and will be an easier target than thousands of individuals.",
           ],
         },
         {
@@ -243,7 +243,7 @@ export const explanationsKeyImplications = {
         {
           lead: "you are delegating decisions in relation to the conduct of the litigation to FIPO:",
           bullets: [
-            "FIPO will have sole discretion over how the Claims are conducted;",
+            "FIPO will have discretion over how the Claims are conducted day to day;",
             "you will not be able to tell FIPO what to do;",
             "you cannot veto FIPO's decisions;",
             "you cannot settle directly with the Defendants;",
@@ -252,7 +252,7 @@ export const explanationsKeyImplications = {
         {
           lead: "FIPO's discretion includes:",
           bullets: [
-            "whether and when to issue proceedings, if at all;",
+            "whether and when it is expedient to issue proceedings, if at all;",
             "which legal and economic arguments to pursue;",
             "whether to settle and on what terms;",
             "how to allocate litigation resources;",
@@ -273,7 +273,7 @@ export const explanationsKeyImplications = {
           ],
         },
         {
-          lead: "you will have the following essential remaining rights:",
+          lead: "you will have the following essential rights:",
           bullets: [
             "a right to be kept reasonably informed (although you accept that because of the risk that information may be shared with the defendants it will be necessary to be reasonably circumspect;",
             "you will be consulted on major decisions (where reasonably practicable) although consultation may be at the level of representative organisations formed to represent particular specialisms;",
@@ -286,7 +286,7 @@ export const explanationsKeyImplications = {
           bullets: [
             "you can express your views to FIPO. It will have regard to them when making decisions in the best interests of the collective;",
             "but FIPO's decision is final;",
-            "you cannot challenge FIPO's litigation strategy; and",
+            "you cannot individually challenge FIPO's litigation strategy; and",
             "collective action requires the acceptance of group members of majority decisions.",
           ],
         },
@@ -298,7 +298,7 @@ export const explanationsKeyImplications = {
         {
           bullets: [
             "After a 14-day cooling-off period, you cannot change your mind after you have signed the Power of Attorney and joined the action group. You cannot unilaterally revoke or cancel it.",
-            "The Power of Attorney will remain in force until [  ] which is the date when it expires, by which time the Claims should have concluded.",
+            "The Power of Attorney will remain in force until 20 January 2032 which is the date when it expires, by which time the Claims should have concluded.",
             "The Power of Attorney will also expire if you die or become incapable.",
             "FIPO can however exercise its discretion to discontinue your claim if you become an Obstructive Claimant under the terms of the LMA.",
           ],
@@ -306,9 +306,9 @@ export const explanationsKeyImplications = {
         {
           lead: "Why the Power of Attorney must be irrevocable:",
           bullets: [
-            "FIPO, its advisers and potential funders, need certainty to pursue expensive litigation;",
-            "FIPO will be taking a significant and serious step on your behalf by issuing a claim in the High Court on your behalf;",
-            "if members were free to end their involvement in the litigation, this would also be against the interests of other members: members cannot withdraw mid-case; collective action requires commitment from all participants; and",
+            "the group, FIPO, its advisers and potential funders, needs certainty to pursue expensive litigation;",
+            "we will be taking a significant and serious step on your behalf by issuing a claim in the High Court on your behalf;",
+            "if members were free straightforwardly to end their involvement in the litigation, this would also be against the interests of other members: members cannot withdraw mid-case without consequences;  collective action requires commitment from all participants; and",
             "defendants need to know who has standing to sue;",
           ],
         },
@@ -316,7 +316,7 @@ export const explanationsKeyImplications = {
           lead: "What if nevertheless you want to withdraw?",
           bullets: [
             "if you become obstructive, and do not cooperate, FIPO can decide to discontinue your claim. Discontinuance is usually followed by a costs order in favour of the defendant, as it is an acceptance that the Claim should not have been brought and (even if other Claims succeed) the defendant will have wasted time and costs on the discontinued claim;",
-            "the only way to withdraw without cost (which is unlikely to be agreed once proceedings are issued is by agreement between FIPO and the defendants.",
+            "the only way to withdraw without cost (which is unlikely to be agreed once proceedings are issued is by agreement between your fellow claimants and the defendants.",
           ],
         },
       ],
@@ -421,12 +421,12 @@ export const explanationsDocuments = {
     {
       number: "01",
       title: "The Retainer and Damages-Based Agreement with Harcus Parker",
-      body: "FIPO will enter into this agreement on your behalf, exercising the authority you give it under the Power of Attorney. The DBA means that if your claim succeeds, Harcus Parker’s fees will be deducted from your damages (at the rate of 32.5% or 30% + VAT depending on your subscription level). If your claim does not succeed, you will owe Harcus Parker nothing.",
+      body: "You should read these documents carefully. The DBA means that, if your claim succeeds, Harcus Parker’s fees will be deducted from your damages (at the rate of 32.5% or 30% + VAT depending on your subscription level). If your claim does not succeed, you will owe Harcus Parker nothing.",
     },
     {
       number: "02",
       title: "The Power of Attorney",
-      body: ["This is the key document. By signing it, you authorise FIPO to bring your claim on your behalf, to instruct lawyers on your behalf, and to make all decisions in relation to your claim — including whether and when to settle. You should read it carefully.", "The Power of Attorney becomes irrevocable after a 14-day cooling-off period. If you die or become incapacitated while the Claim is ongoing, the Power of Attorney will be automatically revoked and your personal representatives will need to execute a new one to continue your claim."]
+      body: ["This is a the key document. By signing it, you authorise FIPO to manage your claim on your behalf day to day, to instruct lawyers on your behalf day to day, and to make all decisions in relation to your claim — including whether and when to settle. You should read it carefully.", "The documents, including the Power of Attorney, become irrevocable after a 14-day cooling-off period. If you die or become incapacitated while the Claim is ongoing, the Power of Attorney will be automatically revoked and your personal representatives will need to execute a new one to continue your claim."]
     },
     {
       number: "03",
@@ -440,8 +440,8 @@ export const explanationsDocuments = {
     },
   ],
   footnote: {
-    title: "FIPO’s engagement with Harcus Parker and Counsel, including the DBA it will execute on your behalf with your approval.",
-    body: "This sets out the terms on which Harcus Parker will act for FIPO in the prosecution of your claim. It will enter the agreement with Harcus Parker for you and as you. You should read the entire document, but note:",
+    title: "Your engagement with Harcus Parker and Counsel, including the DBA",
+    body: "The engagement letter sets out the terms on which Harcus Parker will act for you in the prosecution of your claim. You should read the entire document, but note:",
   },
   readMore: {
     label: "Read More",
@@ -456,17 +456,17 @@ export const explanationsDocuments = {
           ],
         },
         {
-          text: "FIPO will instruct Harcus Parker as solicitors, who will in turn instruct Suzanne Rab, a barrister in independent practice at Matrix Chambers, who FIPO has instructed directly;",
+          text: "You will instruct Harcus Parker as solicitors, who will in turn instruct Suzanne Rab, a barrister in independent practice at Matrix Chambers, who FIPO has instructed directly;",
         },
         {
-          text: "FIPO will use action group's funds, which include your subscriptions, to contribute to legal costs during the 'Pre-Action Phase' and will use any balance to pay towards the cost of ATE insurance.",
+          text: "FIPO will use the action group's funds, which include your subscriptions, to contribute to legal costs during the 'Pre-Action Phase' and will use any balance to pay towards the cost of ATE insurance.",
         },
       ],
     },
     powerOfAttorney: {
       title: "THE Power of Attorney",
       paragraphs: [
-        "The Power of Attorney is your way of giving authority to FIPO to act as the claimant in the intended litigation.",
+        "The Power of Attorney is your way of giving authority to FIPO to manage your claim day to day in the intended litigation.",
         "Please note that the delegation of authority to FIPO is complete and extends to decisions about settlement as well as strategy and day to day conduct.",
         "Please also note that if you die or become incapable while the Claims are ongoing, the Power of Attorney will be revoked. It will be necessary for your attorney under an LPA or your personal representatives to execute a further Power of Attorney.",
       ],
@@ -477,7 +477,7 @@ export const explanationsDocuments = {
       features: [
         "confirmation of the practical impact of the Power of Attorney;",
         "a declaration of common purpose with the other medical professionals who join the action group;",
-        "your agreement to cooperate with FIPO in the progression of the Claims, including by disclosing documents to FIPO so that it can comply with the formal requirements of the court's rules;",
+        "your agreement to cooperate with FIPO in the progression of the Claims, including by disclosing documents so as to comply with the formal requirements of the court's rules;",
         "your agreement as to how your information will be used;",
         "your agreement as to how cost and theoretical risk will be shared; and",
         "your agreement as to the distribution of damages.",
@@ -504,23 +504,23 @@ export const explanationsDocuments = {
             lead: "You and the other Consultants agree:",
             bullets: [
               "that You will cooperate fully with FIPO, Harcus Parker and Counsel and any other expert advisers who may be appointed in the pursuit of the Claims;",
-              "that, notwithstanding that FIPO will progress Your Claim as your attorney, You have a duty to the Court and will conduct yourself as though You were yourself bringing the Claim on Your own behalf;",
-              "that You will observe a \"document hold\" (that is, you take steps to preserve all and any documents and data that are or may be relevant to the subject matter of the Claim) recognising that in due course it will be necessary for FIPO to disclose such documents regardless of whether they help your Claim or harm it;",
+              "that, notwithstanding that FIPO will progress Your Claim as your attorney, You are a Claimant and have a duty to the Court and will conduct yourself accordingly;",
+              "that You will observe a \"document hold\" (that is, you take steps to preserve all and any documents and data that are or may be relevant to the subject matter of the Claim) recognising that in due course it will be necessary to disclose such documents regardless of whether they help your Claim or harm it;",
               "that You will provide such documents, information, and evidence as may reasonably be required and will respond to any requests in this respect in a timely fashion;",
               "that to the extent that You communicate directly with FIPO in relation to the Claim or send information directly to FIPO, including through any website portal, any such interactions with FIPO are in its capacity as Harcus Parker's agent in relation to the Claims and are subject to legal professional privilege;",
               "that to the extent that You communicate with any other Consultant in relation to Your or their Claim or the Claims in general such communications are subject to common interest privilege;",
               "that You will attend meetings and hearings if reasonably required to do so;",
               "that You will not do anything that might prejudice or compromise or otherwise have a detrimental impact on the Claims;",
-              "that You will notify FIPO and Harcus parker immediately of any material developments affecting the Claims.",
+              "that You will notify FIPO and Harcus Parker immediately of any material developments affecting the Claims.",
             ],
           },
           {
             lead: "FIPO will:",
             bullets: [
-              "act in good faith in pursuing the Claims for the collective benefit of all Consultants;",
+              "act in good faith in taking steps to pursue the Claims within the terms of the Powers of Attorney for the collective benefit of all Consultants;",
               "keep the Consultants (subject to clause 7 below and the need to be circumspect because of the risk of information being disclosed to the Defendants) reasonably informed of material developments in the Claims;",
               "notwithstanding that it has no duty to do so and retains a discretion as to whether it should, consult Consultants on major strategic decisions where reasonably practicable and expedient;",
-              "with no duty to the Consultants conduct the Claims diligently and with reasonable skill and care.",
+              "with no duty to the Consultants conduct the management of the Claims diligently and with reasonable skill and care.",
             ],
           },
           {
@@ -530,8 +530,8 @@ export const explanationsDocuments = {
               "You have no right to interfere with or challenge FIPO's conduct of the Claims;",
               "FIPO may settle the Claims on such terms as it considers appropriate in the collective interest;",
               "Individual Consultants may have different views on litigation strategy, but collective decision-making is necessary for effective collective action;",
-              "the Consultants' common interest is in FIPO attempting to secure the largest possible sum from the Defendant(s). This could be as a result of the Court awarding a sum of compensation or as a result of the Defendant(s) to your Claim making an offer of settlement which is accepted on your behalf by FIPO;",
-              "if the Claims result in a successful judgment at trial, the court may order that some Consultants, through FIPO, are ultimately compensated in a different way from others because of their individual circumstances; and",
+              "the Consultants' common interest is in securing the largest possible sum from the Defendant(s). This could be as a result of the Court awarding a sum of compensation or as a result of the Defendant(s) to your Claim making an offer of settlement which is accepted on your behalf by FIPO;",
+              "if the Claims result in a successful judgment at trial, the court may order that some Consultants, are ultimately compensated in a different way from others because of their individual circumstances; and",
               "although Your primary interest in the Claims is a financial interest in any damages associated with Your Claim or Claims and / or your Proportionate Share in the Claims overall, circumstances may arise in which it would be expedient not to take detailed account of the individual issues of each Consultant's case in the allocation of the Overall Claim Proceeds to Consultants because it would otherwise be expensive and burdensome to work out a fair division.",
             ],
           },
@@ -548,8 +548,8 @@ export const explanationsDocuments = {
         {
           title: "I understand the legal process",
           items: [
-            "I have read or been offered the opportunity to read all legal documents including in particular Harcus Parker's engagement documents, which FIPO is executing on my behalf, and have read the Important Legal Notice on the Claim website",
-            "I understand FIPO will bring and manage the litigation on behalf of all participants",
+            "I have read or been offered the opportunity to read all legal documents including in particular Harcus Parker's engagement documents, and have read the Important Legal Notice on the Claim website",
+            "I understand FIPO will manage the litigation on behalf of all participants",
             "I understand major decisions (including settlement) are made by FIPO in the collective interest",
           ],
         },
@@ -566,7 +566,7 @@ export const explanationsDocuments = {
         {
           title: "I understand this is legally binding",
           items: [
-            "The documents I have signed are legally binding and cannot be easily withdrawn from",
+            "The documents I have signed are legally binding and cannot be easily withdrawn from outside of the 14-day cooling-off period",
             "I have had the opportunity to seek independent legal advice (whether or not I chose to do so)",
             "I am participating voluntarily with full understanding of the implications",
           ],
