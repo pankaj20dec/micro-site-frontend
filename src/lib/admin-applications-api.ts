@@ -70,3 +70,51 @@ export async function fetchAdminApplications(params?: {
     page: number;
   };
 }
+
+export type RefundableApplication = AdminApplication & {
+  paidAt: string;
+  refundDeadline: string;
+  daysRemaining: number;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+};
+
+export async function fetchRefundableApplications() {
+  const res = await fetch(`${getApiBase()}/api/admin/applications/refundable`, {
+    headers: authHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof data.error === "string"
+        ? data.error
+        : "Failed to load refundable payments";
+    throw Object.assign(new Error(message), { status: res.status });
+  }
+  return data as {
+    applications: RefundableApplication[];
+    windowDays: number;
+  };
+}
+
+export async function refundAdminApplication(id: string) {
+  const res = await fetch(`${getApiBase()}/api/admin/applications/${id}/refund`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof data.error === "string" ? data.error : "Failed to refund payment";
+    throw Object.assign(new Error(message), { status: res.status });
+  }
+  return data as {
+    application: AdminApplication;
+    stub?: boolean;
+    message?: string;
+  };
+}

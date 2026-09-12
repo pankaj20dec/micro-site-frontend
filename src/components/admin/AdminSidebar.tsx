@@ -54,11 +54,18 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-const SUPER_ADMIN_ITEM: NavItem = {
-  href: "/admin/register",
-  label: "Register Admin",
-  icon: <AdminIcon />,
-};
+const SUPER_ADMIN_ITEMS: NavItem[] = [
+  {
+    href: "/admin/payments",
+    label: "Stripe Refunds",
+    icon: <PaymentsIcon />,
+  },
+  {
+    href: "/admin/register",
+    label: "Register Admin",
+    icon: <AdminIcon />,
+  },
+];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href;
@@ -79,7 +86,7 @@ export function AdminSidebar() {
   const groups = isSuperAdmin
     ? NAV_GROUPS.map((group, index) =>
         index === NAV_GROUPS.length - 1
-          ? { ...group, items: [...group.items, SUPER_ADMIN_ITEM] }
+          ? { ...group, items: [...group.items, ...SUPER_ADMIN_ITEMS] }
           : group
       )
     : NAV_GROUPS;
@@ -211,6 +218,14 @@ function AdminIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z" />
+    </svg>
+  );
+}
+
+function PaymentsIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
     </svg>
   );
 }

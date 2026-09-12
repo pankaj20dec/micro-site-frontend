@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { AdminApplication, AdminEvidenceFile } from "@/lib/admin-users-api";
 import { evidenceUploadLabel, isWitnessEvidenceUploadKey } from "@/lib/application-api";
 import { getApiBase } from "@/lib/api";
-import { getAdminToken } from "@/lib/admin-auth";
+import { getAdmin, getAdminToken } from "@/lib/admin-auth";
+import { refundAdminApplication } from "@/lib/admin-applications-api";
+
+const REFUND_WINDOW_DAYS = 15;
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -35,6 +38,7 @@ function statusBadge(value: string | null | undefined, type: "status" | "payment
     COMPLETED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80",
     PAID: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80",
     FAILED: "bg-red-50 text-red-700 ring-1 ring-red-200/80",
+    REFUNDED: "bg-slate-100 text-slate-600 ring-1 ring-slate-200/80",
     SUPPORTER: "bg-purple-50 text-[#660066] ring-1 ring-[#660066]/20",
     CLAIMANT: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/80",
   };
@@ -384,9 +388,74 @@ function pickFields(
 
 export function AdminApplicationViewer({
   application,
+  onRefunded,
 }: {
   application: AdminApplication;
+  onRefunded?: () => void;
 }) {
+  const [refunding, setRefunding] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [refundMessage, setRefundMessage] = useState<string | null>(null);
+
+  const refundInfo = useMemo(() => {
+    const isSuperAdmin = getAdmin()?.role === "SUPER_ADMIN";
+    if (
+      !isSuperAdmin ||
+      application.paymentStatus !== "PAID" ||
+      application.paymentProvider !== "STRIPE" ||
+      !application.stripePaymentIntentId
+    ) {
+      return null;
+    }
+
+    const paidAtRaw =
+      application.paidAt ||
+      application.paymentEvents.find(
+        (event) =>
+          event.status === "succeeded" ||
+          event.type === "payment_intent.confirm" ||
+          event.type === "payment_intent.succeeded"
+      )?.createdAt;
+
+    if (!paidAtRaw) return null;
+    const paidAt = new Date(paidAtRaw);
+    const deadline = new Date(
+      paidAt.getTime() + REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000
+    );
+    const msLeft = deadline.getTime() - Date.now();
+    if (msLeft <= 0) return null;
+
+    return {
+      paidAt,
+      deadline,
+      daysRemaining: Math.ceil(msLeft / (24 * 60 * 60 * 1000)),
+    };
+  }, [application]);
+
+  async function handleRefund() {
+    const fee =
+      application.membershipFee == null || application.membershipFee === ""
+        ? "membership"
+        : `£${Number(application.membershipFee)}`;
+    const ok = window.confirm(
+      `Refund this ${fee} Stripe payment?\n\nOnly available within ${REFUND_WINDOW_DAYS} days of payment.`
+    );
+    if (!ok) return;
+
+    setRefunding(true);
+    setRefundError(null);
+    setRefundMessage(null);
+    try {
+      const result = await refundAdminApplication(application.id);
+      setRefundMessage(result.message || "Payment refunded.");
+      onRefunded?.();
+    } catch (e) {
+      setRefundError(e instanceof Error ? e.message : "Failed to refund payment");
+    } finally {
+      setRefunding(false);
+    }
+  }
+
   const stage1 =
     application.stage1Data && typeof application.stage1Data === "object"
       ? (application.stage1Data as Record<string, unknown>)
@@ -424,6 +493,13 @@ export function AdminApplicationViewer({
           { label: "Membership fee", value: application.membershipFee },
           { label: "Payment provider", value: application.paymentProvider },
           { label: "Payment status", value: application.paymentStatus, badge: true },
+          {
+            label: "Stripe payment intent",
+            value: application.stripePaymentIntentId,
+            mono: true,
+          },
+          { label: "Paid at", value: formatDate(application.paidAt) },
+          { label: "Refunded at", value: formatDate(application.refundedAt) },
           { label: "DocuSign status", value: application.docusignStatus, badge: true },
           {
             label: "DocuSign envelope",
@@ -437,6 +513,38 @@ export function AdminApplicationViewer({
           { label: "Last updated", value: formatDate(application.updatedAt) },
         ]}
       />
+
+      {refundInfo && (
+        <section className="overflow-hidden rounded-xl border border-amber-200/80 bg-amber-50/40">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Stripe refund</h3>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Super Admin can refund within {REFUND_WINDOW_DAYS} days of payment.
+                {` ${refundInfo.daysRemaining} day${refundInfo.daysRemaining === 1 ? "" : "s"} remaining.`}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={refunding}
+              onClick={() => void handleRefund()}
+              className="rounded-lg bg-[#660066] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#520052] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {refunding ? "Refunding…" : "Refund payment"}
+            </button>
+          </div>
+          {refundError && (
+            <p className="border-t border-amber-200/80 px-5 py-3 text-sm text-red-700">
+              {refundError}
+            </p>
+          )}
+          {refundMessage && (
+            <p className="border-t border-amber-200/80 px-5 py-3 text-sm text-emerald-700">
+              {refundMessage}
+            </p>
+          )}
+        </section>
+      )}
 
       <DataSection
         title="Supporter registration"

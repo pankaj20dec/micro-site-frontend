@@ -62,6 +62,11 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const reloadUser = async () => {
+    const data = await fetchAdminUserDetail(userId);
+    setUser(data);
+  };
+
   useEffect(() => {
     if (!mounted) return;
 
@@ -189,7 +194,12 @@ export default function AdminUserDetailPage() {
                     </p>
                   </div>
                   <div className="p-6">
-                    <AdminApplicationViewer application={application} />
+                    <AdminApplicationViewer
+                      application={application}
+                      onRefunded={() => {
+                        void reloadUser();
+                      }}
+                    />
                   </div>
                 </section>
               ))}
