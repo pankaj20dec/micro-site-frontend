@@ -329,7 +329,12 @@ export type StartDocusignResponse = {
 
 export async function startDocusignSigning(
   returnBaseUrl: string,
-  options?: { forceNew?: boolean; attachPmiEvidence?: boolean; returnContext?: string }
+  options?: {
+    forceNew?: boolean;
+    attachPmiEvidence?: boolean;
+    returnContext?: string;
+    signerAddress?: string;
+  }
 ): Promise<StartDocusignResponse> {
   const res = await fetch(`${getApiBase()}/api/docusign/send`, {
     method: "POST",
@@ -339,6 +344,7 @@ export async function startDocusignSigning(
       forceNew: options?.forceNew === true,
       attachPmiEvidence: options?.attachPmiEvidence !== false,
       returnContext: options?.returnContext,
+      signerAddress: options?.signerAddress || "",
     }),
   });
   const { data, ok } = await parseApiJson(res);

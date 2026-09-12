@@ -110,6 +110,8 @@ export interface AdminApplication {
   paymentStatus: string;
   stripePaymentIntentId: string | null;
   paypalOrderId: string | null;
+  paidAt?: string | null;
+  refundedAt?: string | null;
   idDocumentUrl: string | null;
   idVerifiedAt: string | null;
   docusignEnvelopeId: string | null;
