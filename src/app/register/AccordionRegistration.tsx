@@ -1019,6 +1019,10 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please complete all required fields.");
       return;
     }
+    if (!address.trim()) {
+      setError("Please enter your address.");
+      return;
+    }
     if (gmcNumber.trim() && !isValidGmcNumber(gmcNumber)) {
       setError("GMC number must be 7 digits, or a letter followed by 7 digits (e.g. 1234567 or A1234567).");
       return;
@@ -1657,6 +1661,7 @@ export default function AccordionRegistration({ application }: Props) {
             claimantDone={claimantDone}
             error={error}
             docusignStatus={docusignStatus}
+            signerAddress={address}
             onDocusignStatusChange={setDocusignStatus}
             engagementSigned={engagementSigned}
             onEngagementSigned={() => {
@@ -2254,6 +2259,7 @@ function ClaimantMemberAccordion({
   onWitnessStubComplete,
   onClearError,
   onStage2NeedsRestartChange,
+  signerAddress = "",
 }: {
   claimantOpen: ClaimantSectionId;
   setClaimantOpen: (id: ClaimantSectionId) => void;
@@ -2292,6 +2298,7 @@ function ClaimantMemberAccordion({
   onWitnessStubComplete: () => void;
   onClearError: () => void;
   onStage2NeedsRestartChange?: (needs: boolean) => void;
+  signerAddress?: string;
 }) {
   const [stage2NeedsRestart, setStage2NeedsRestart] = useState(false);
   return (
@@ -2374,6 +2381,7 @@ function ClaimantMemberAccordion({
                 onDocusignStubModeChange={onDocusignStubModeChange}
                 engagementStubComplete={engagementStubComplete}
                 onEngagementStubComplete={onEngagementStubComplete}
+                signerAddress={signerAddress}
               />
             )}
 
@@ -2527,6 +2535,7 @@ function ClaimantStage1Panel({
   onDocusignStubModeChange,
   engagementStubComplete,
   onEngagementStubComplete,
+  signerAddress = "",
 }: {
   docusignStatus: string;
   onDocusignStatusChange: (status: string) => void;
@@ -2538,6 +2547,7 @@ function ClaimantStage1Panel({
   onDocusignStubModeChange: (stub: boolean) => void;
   engagementStubComplete: boolean;
   onEngagementStubComplete: () => void;
+  signerAddress?: string;
 }) {
   const [envelopeNeedsRestart, setEnvelopeNeedsRestart] = useState(false);
   const bullets = [
@@ -2639,6 +2649,7 @@ function ClaimantStage1Panel({
             onStubModeChange={onDocusignStubModeChange}
             stubComplete={engagementStubComplete}
             onStubComplete={onEngagementStubComplete}
+            signerAddress={signerAddress}
           />
           <EngagementSignedPdfLinks visible={signedPdfReady} />
         </div>
@@ -4281,6 +4292,7 @@ function RegistrationDocuSignSection({
   onStubComplete,
   witnessInviteSent = false,
   onWitnessInviteSent,
+  signerAddress = "",
 }: {
   docusignStatus: string;
   onStatusChange: (status: string) => void;
@@ -4324,6 +4336,7 @@ function RegistrationDocuSignSection({
   onStubComplete: () => void;
   witnessInviteSent?: boolean;
   onWitnessInviteSent?: () => void;
+  signerAddress?: string;
 }) {
   const needsPmiFiles = requirePmiFiles !== false;
   const filesReady = (needsPmiFiles ? pmiFilesReady : true) && signingReady !== false;
@@ -4643,6 +4656,7 @@ function RegistrationDocuSignSection({
     return startDocusignSigning(returnBaseUrl, {
       forceNew,
       attachPmiEvidence: attachEvidence,
+      signerAddress,
     });
   }
 
