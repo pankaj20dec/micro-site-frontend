@@ -186,6 +186,9 @@ export async function capturePaypalOrder(orderId: string) {
     body: JSON.stringify({ orderId }),
   });
   const { data, ok } = await parseApiJson(res);
+  if (res.status === 401) {
+    throw new Error("Please sign in to complete your PayPal payment.");
+  }
   if (!ok) throw new Error(data.error ?? "Capture failed");
   return data;
 }
