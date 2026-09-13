@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { createPaypalOrder, getPaymentReturnBaseUrl } from "@/lib/application-api";
 
 const PAYPAL_CURRENCY = process.env.NEXT_PUBLIC_PAYPAL_CURRENCY?.trim() || "GBP";
+const IS_PAYPAL_SANDBOX =
+  (process.env.NEXT_PUBLIC_PAYPAL_MODE || "").trim().toLowerCase() === "sandbox";
 
 function formatMoney(amount: number) {
   return new Intl.NumberFormat("en-GB", {
@@ -48,16 +50,18 @@ export function PayPalCheckoutModal({ open, amount, onClose, onError }: Props) {
             "PayPal is not configured on the server. Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to backend .env, then restart the API."
           );
         }
-        if (!result.approveUrl) {
+        const checkoutUrl = result.approveUrl || result.payerActionUrl;
+        if (!checkoutUrl) {
           throw new Error("PayPal did not return a checkout URL.");
         }
-        setApproveUrl(result.approveUrl);
+        setApproveUrl(checkoutUrl);
       })
       .catch((err) => {
         if (!cancelled) {
           const message =
             err instanceof Error ? err.message : "Could not start PayPal checkout.";
           setOrderError(message);
+          onError(message);
         }
       })
       .finally(() => {
@@ -116,33 +120,35 @@ export function PayPalCheckoutModal({ open, amount, onClose, onError }: Props) {
 
         {!orderLoading && !orderError && approveUrl && (
           <>
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-relaxed text-amber-950">
-              <p className="font-semibold">Sandbox test account required</p>
-              <p className="mt-1">
-                On PayPal&apos;s page, sign in with the <strong>Personal</strong> sandbox
-                buyer account from{" "}
-                <a
-                  href="https://developer.paypal.com/dashboard/accounts"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[#0070ba] underline"
-                >
-                  developer.paypal.com → Sandbox → Accounts
-                </a>
-                . Do not use your real PayPal email or the Business merchant account.
-              </p>
-              {PAYPAL_CURRENCY === "USD" ? (
-                <p className="mt-2">
-                  Currency is <strong>USD</strong> — use a <strong>United States</strong>{" "}
-                  sandbox Personal account.
+            {IS_PAYPAL_SANDBOX && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-relaxed text-amber-950">
+                <p className="font-semibold">Sandbox test account required</p>
+                <p className="mt-1">
+                  On PayPal&apos;s page, sign in with the <strong>Personal</strong> sandbox
+                  buyer account from{" "}
+                  <a
+                    href="https://developer.paypal.com/dashboard/accounts"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#0070ba] underline"
+                  >
+                    developer.paypal.com → Sandbox → Accounts
+                  </a>
+                  . Do not use your real PayPal email or the Business merchant account.
                 </p>
-              ) : (
-                <p className="mt-2">
-                  Currency is <strong>GBP</strong> — use a <strong>United Kingdom</strong>{" "}
-                  sandbox Personal account (not US/INR).
-                </p>
-              )}
-            </div>
+                {PAYPAL_CURRENCY === "USD" ? (
+                  <p className="mt-2">
+                    Currency is <strong>USD</strong> — use a <strong>United States</strong>{" "}
+                    sandbox Personal account.
+                  </p>
+                ) : (
+                  <p className="mt-2">
+                    Currency is <strong>GBP</strong> — use a <strong>United Kingdom</strong>{" "}
+                    sandbox Personal account (not US/INR).
+                  </p>
+                )}
+              </div>
+            )}
 
             <button
               type="button"

@@ -595,7 +595,7 @@ export default function AccordionRegistration({ application }: Props) {
     setSaveModalOpen(true);
   }, [activeTab, open, payMethod, paymentPaid]);
 
-  // Complete PayPal redirect checkout when user returns from sandbox.paypal.com
+  // Complete PayPal redirect checkout when user returns from PayPal
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("paypalCancel") === "1") {
@@ -608,7 +608,17 @@ export default function AccordionRegistration({ application }: Props) {
 
     if (params.get("paypalReturn") !== "1") return;
     const token = params.get("token");
-    if (!token) return;
+    if (!token) {
+      setError("PayPal did not return an order id. Please try payment again.");
+      setOpen("payment");
+      router.replace("/register?form=1", { scroll: false });
+      return;
+    }
+    if (!getUserToken()) {
+      setError("Please sign in to complete your PayPal payment.");
+      setOpen("payment");
+      return;
+    }
 
     let cancelled = false;
     setLoading(true);
@@ -629,14 +639,24 @@ export default function AccordionRegistration({ application }: Props) {
         setOpen("confirmation");
         router.replace("/register?form=1", { scroll: false });
       })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "PayPal payment could not be completed. Use a US sandbox Personal account if paying in USD."
-          );
+      .catch(async (err) => {
+        if (cancelled) return;
+        const paid = await pollPaymentStatus({ maxAttempts: 3, delayMs: 800 }).catch(
+          () => false
+        );
+        if (paid) {
+          setPaymentPaid(true);
+          sessionStorage.removeItem("paypal_checkout_pending");
+          setDone((prev) => new Set(prev).add("payment"));
+          setOpen("confirmation");
+          router.replace("/register?form=1", { scroll: false });
+          return;
         }
+        setError(
+          err instanceof Error
+            ? err.message
+            : "PayPal payment could not be completed. Please try again."
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
