@@ -10,8 +10,7 @@ export const contactInfo = {
       "Federation of Independent Practitioner Organisations (FIPO)",
       "The Harley Building",
       "77-79 New Cavendish Street",
-      "London",
-      "W1W 6XB",
+      "London, W1W 6XB"
     ],
   },
   email: {

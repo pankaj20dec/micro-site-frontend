@@ -187,7 +187,7 @@ export const explanationsCostsRisk = {
     {
       number: "03",
       lead: "Third-Party Funder:",
-      body: "Any third-party funder of the claim also may face an application to be made responsibe for adverse costs and — as an institution — is likely to be a more accessible target than thousands of individual practitioners.",
+      body: "Any third-party funder of the claim also may face an application to be made responsible for adverse costs and — as an institution — is likely to be a more accessible target than thousands of individual practitioners.",
     },
     {
       number: "04",
@@ -230,6 +230,9 @@ export const explanationsKeyImplications = {
         },
         {
           text: "As a consequence of this structure, it is highly unlikely that you will face any personal liability.",
+          children: [
+            "We provide here a warning on this website through which you are executing this letter of engagement: if the ATE is insufficient, or if the insurance company or companies providing the cover were to fail, then liability for adverse costs will fall on you. Your liability in this respect, by virtue of the agreement contained in the LMA, would be both severable and proportionate to your claim, so that the more Consultants who join the claim the lower your theoretical exposure will be. We advise you that the risk of you incurring a liability in this respect is very low in practice. We will seek cost management of the claims, so that we are in a position to ensure that the insurance cover, so that the risk you are taking is in practice only the risk of the insurance company failing or not honouring a claim. We will source ATE insurance through a broker whose responsibility it will be to source appropriate insurance, which will limit this theoretical risk further. By way of simple illustration, if the uninsured liability was £2,000,000 and there were 2,000 claimants, with claims of equal size, each claimant’s theoretical risk in the unlikely event of underinsurance or the failure of an insurance company would be £1,000.",
+          ]
         },
       ],
     },
@@ -433,11 +436,11 @@ export const explanationsDocuments = {
       title: "The Litigation Management Agreement (LMA)",
       body: "The LMA is the agreement between you, FIPO and Harcus Parker that governs how the Claim is run. It covers: decision-making, your obligations to cooperate (including providing disclosure and potentially giving evidence), how costs are shared, and how damages are distributed.",
     },
-    {
-      number: "04",
-      title: "The Overarching Declaration",
-      body: "The LMA is the agreement between you, FIPO and Harcus Parker that governs how the Claim is run. It covers: decision-making, your obligations to cooperate (including providing disclosure and potentially giving evidence), how costs are shared, and how damages are distributed.",
-    },
+    // {
+    //   number: "04",
+    //   title: "The Overarching Declaration",
+    //   body: "The LMA is the agreement between you, FIPO and Harcus Parker that governs how the Claim is run. It covers: decision-making, your obligations to cooperate (including providing disclosure and potentially giving evidence), how costs are shared, and how damages are distributed.",
+    // },
   ],
   footnote: {
     title: "Your engagement with Harcus Parker and Counsel, including the DBA",

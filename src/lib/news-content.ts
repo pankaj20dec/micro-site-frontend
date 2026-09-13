@@ -14,7 +14,7 @@ export const staticNewsArticles: PageDoc[] = [
     featuredImage:
       "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=800&q=80",
     category: "Health Awareness",
-    publishedAt: "2026-04-22T00:00:00.000Z",
+    publishedAt: "2025-12-10T00:00:00.000Z",
     published: true,
     body: `FIPO attended the Private Healthcare Information Network (PHIN) AGM at which it was reported it is on track to deliver its Transparency Programme to the satisfaction of the CMA by June 2026.
 
@@ -33,7 +33,7 @@ FIPO continues to engage with PHIN and the CMA to ensure that transparency measu
     featuredImage:
       "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80",
     category: "Doctor Insights",
-    publishedAt: "2026-04-22T00:00:00.000Z",
+    publishedAt: "2025-09-16T00:00:00.000Z",
     published: true,
     body: `Invited to address the British Orthopaedic Association's Annual Congress in Liverpool, FIPO Vice Chairman Charlie Chan highlighted concerns about the impact of Private Medical Insurance practices on consultants and patients, giving rise to restrictions on patient choice.
 

@@ -298,6 +298,10 @@ export default function AccordionRegistration({ application }: Props) {
   const [paymentPaid, setPaymentPaid] = useState(
     application?.paymentStatus === "PAID"
   );
+
+  useEffect(() => {
+    setPaymentPaid(application?.paymentStatus === "PAID");
+  }, [application?.paymentStatus]);
   const paymentRef = useRef<PaymentSectionHandle>(null);
   const handlePaymentPaid = useCallback(() => setPaymentPaid(true), []);
 
@@ -626,14 +630,27 @@ export default function AccordionRegistration({ application }: Props) {
     setOpen("payment");
     setPayMethod("paypal");
 
-    const fee = membershipType === "ORGANISATION" ? 500 : 250;
+    const storedAmount = Number(sessionStorage.getItem("paypal_checkout_amount"));
+    const fee =
+      storedAmount === 500 || storedAmount === 250
+        ? storedAmount
+        : membershipType === "ORGANISATION"
+          ? 500
+          : 250;
+    const paidMembershipType = fee === 500 ? "ORGANISATION" : "INDIVIDUAL";
 
     capturePaypalOrder(token)
       .then(async () => {
         if (cancelled) return;
         setPaymentPaid(true);
+        setMembershipType(paidMembershipType);
         sessionStorage.removeItem("paypal_checkout_pending");
-        await saveStep({ membershipType, membershipFee: fee, currentStep: 3 });
+        sessionStorage.removeItem("paypal_checkout_amount");
+        await saveStep({
+          membershipType: paidMembershipType,
+          membershipFee: fee,
+          currentStep: 3,
+        });
         if (cancelled) return;
         setDone((prev) => new Set(prev).add("payment"));
         setOpen("confirmation");
