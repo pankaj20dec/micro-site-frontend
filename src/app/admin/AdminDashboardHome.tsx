@@ -290,8 +290,8 @@ export function AdminDashboardHome() {
     ...(isSuperAdmin
       ? [
           {
-            title: "Stripe refunds",
-            description: "Refund paid memberships within 15 days",
+            title: "Payment refunds",
+            description: "Refund Stripe or PayPal memberships within 14 days",
             href: "/admin/payments",
             icon: <PaymentsIcon />,
           },

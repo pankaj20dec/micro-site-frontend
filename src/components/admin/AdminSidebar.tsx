@@ -57,7 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
 const SUPER_ADMIN_ITEMS: NavItem[] = [
   {
     href: "/admin/payments",
-    label: "Stripe Refunds",
+    label: "Payment Refunds",
     icon: <PaymentsIcon />,
   },
   {

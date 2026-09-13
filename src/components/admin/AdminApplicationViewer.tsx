@@ -7,7 +7,7 @@ import { getApiBase } from "@/lib/api";
 import { getAdmin, getAdminToken } from "@/lib/admin-auth";
 import { refundAdminApplication } from "@/lib/admin-applications-api";
 
-const REFUND_WINDOW_DAYS = 15;
+const REFUND_WINDOW_DAYS = 14;
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -399,12 +399,13 @@ export function AdminApplicationViewer({
 
   const refundInfo = useMemo(() => {
     const isSuperAdmin = getAdmin()?.role === "SUPER_ADMIN";
-    if (
-      !isSuperAdmin ||
-      application.paymentStatus !== "PAID" ||
-      application.paymentProvider !== "STRIPE" ||
-      !application.stripePaymentIntentId
-    ) {
+    const provider = String(application.paymentProvider || "").toUpperCase();
+    const isStripe = provider === "STRIPE" && !!application.stripePaymentIntentId;
+    const isPayPal =
+      provider === "PAYPAL" &&
+      !!(application.paypalCaptureId || application.paypalOrderId);
+
+    if (!isSuperAdmin || application.paymentStatus !== "PAID" || (!isStripe && !isPayPal)) {
       return null;
     }
 
@@ -413,8 +414,10 @@ export function AdminApplicationViewer({
       application.paymentEvents.find(
         (event) =>
           event.status === "succeeded" ||
+          event.status === "COMPLETED" ||
           event.type === "payment_intent.confirm" ||
-          event.type === "payment_intent.succeeded"
+          event.type === "payment_intent.succeeded" ||
+          event.type === "PAYMENT.CAPTURE.COMPLETED"
       )?.createdAt;
 
     if (!paidAtRaw) return null;
@@ -426,6 +429,7 @@ export function AdminApplicationViewer({
     if (msLeft <= 0) return null;
 
     return {
+      provider: isPayPal ? "PayPal" : "Stripe",
       paidAt,
       deadline,
       daysRemaining: Math.ceil(msLeft / (24 * 60 * 60 * 1000)),
@@ -438,7 +442,7 @@ export function AdminApplicationViewer({
         ? "membership"
         : `£${Number(application.membershipFee)}`;
     const ok = window.confirm(
-      `Refund this ${fee} Stripe payment?\n\nOnly available within ${REFUND_WINDOW_DAYS} days of payment.`
+      `Refund this ${fee} ${refundInfo?.provider || "membership"} payment?\n\nOnly available within ${REFUND_WINDOW_DAYS} days of payment.`
     );
     if (!ok) return;
 
@@ -498,6 +502,16 @@ export function AdminApplicationViewer({
             value: application.stripePaymentIntentId,
             mono: true,
           },
+          {
+            label: "PayPal order",
+            value: application.paypalOrderId,
+            mono: true,
+          },
+          {
+            label: "PayPal capture",
+            value: application.paypalCaptureId,
+            mono: true,
+          },
           { label: "Paid at", value: formatDate(application.paidAt) },
           { label: "Refunded at", value: formatDate(application.refundedAt) },
           { label: "DocuSign status", value: application.docusignStatus, badge: true },
@@ -518,7 +532,9 @@ export function AdminApplicationViewer({
         <section className="overflow-hidden rounded-xl border border-amber-200/80 bg-amber-50/40">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Stripe refund</h3>
+              <h3 className="text-sm font-semibold text-slate-900">
+                {refundInfo.provider} refund
+              </h3>
               <p className="mt-0.5 text-xs text-slate-600">
                 Super Admin can refund within {REFUND_WINDOW_DAYS} days of payment.
                 {` ${refundInfo.daysRemaining} day${refundInfo.daysRemaining === 1 ? "" : "s"} remaining.`}

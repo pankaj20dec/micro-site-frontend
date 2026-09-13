@@ -25,6 +25,21 @@ function formatDate(iso: string) {
   });
 }
 
+function providerLabel(provider: string | null | undefined) {
+  const value = String(provider || "").toUpperCase();
+  if (value === "PAYPAL") return "PayPal";
+  if (value === "STRIPE") return "Stripe";
+  return provider || "—";
+}
+
+function paymentReference(application: RefundableApplication) {
+  const provider = String(application.paymentProvider || "").toUpperCase();
+  if (provider === "PAYPAL") {
+    return application.paypalCaptureId || application.paypalOrderId || "—";
+  }
+  return application.stripePaymentIntentId || "—";
+}
+
 function formatFee(fee: string | number | null | undefined) {
   if (fee === null || fee === undefined || fee === "") return "—";
   const n = Number(fee);
@@ -36,7 +51,7 @@ export default function AdminPaymentsPage() {
   const router = useRouter();
   const mounted = useMounted();
   const [applications, setApplications] = useState<RefundableApplication[]>([]);
-  const [windowDays, setWindowDays] = useState(15);
+  const [windowDays, setWindowDays] = useState(14);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -50,7 +65,7 @@ export default function AdminPaymentsPage() {
       return;
     }
     if (admin?.role !== "SUPER_ADMIN") {
-      setError("Stripe refunds are available to Super Admin only.");
+      setError("Payment refunds are available to Super Admin only.");
       setLoading(false);
       return;
     }
@@ -60,7 +75,7 @@ export default function AdminPaymentsPage() {
     try {
       const data = await fetchRefundableApplications();
       setApplications(data.applications);
-      setWindowDays(data.windowDays ?? 15);
+      setWindowDays(data.windowDays ?? 14);
     } catch (e) {
       const status = (e as { status?: number }).status;
       if (status === 401 || status === 403) {
@@ -82,8 +97,9 @@ export default function AdminPaymentsPage() {
   async function handleRefund(application: RefundableApplication) {
     const fee = formatFee(application.membershipFee);
     const name = `${application.user.firstName} ${application.user.lastName}`.trim();
+    const provider = providerLabel(application.paymentProvider);
     const ok = window.confirm(
-      `Refund ${fee} Stripe payment for ${name || application.user.email}?\n\nThis cannot be undone and must be within ${windowDays} days of payment.`
+      `Refund ${fee} ${provider} payment for ${name || application.user.email}?\n\nThis cannot be undone and must be within ${windowDays} days of payment.`
     );
     if (!ok) return;
 
@@ -105,11 +121,11 @@ export default function AdminPaymentsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Stripe refunds
+          Payment refunds
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Super Admin can refund paid Stripe memberships within {windowDays} days
-          of payment.
+          Super Admin can refund paid Stripe and PayPal memberships within{" "}
+          {windowDays} days of payment.
         </p>
       </div>
 
@@ -143,9 +159,10 @@ export default function AdminPaymentsPage() {
           </div>
         ) : applications.length === 0 ? (
           <div className="px-5 py-14 text-center">
-            <p className="font-medium text-slate-900">No refundable Stripe payments</p>
+            <p className="font-medium text-slate-900">No refundable payments</p>
             <p className="mt-1 text-sm text-slate-500">
-              Paid Stripe payments appear here for {windowDays} days after payment.
+              Paid Stripe and PayPal payments appear here for {windowDays} days after
+              payment.
             </p>
           </div>
         ) : (
@@ -157,7 +174,8 @@ export default function AdminPaymentsPage() {
                   <th className="px-5 py-3">Fee</th>
                   <th className="px-5 py-3">Paid</th>
                   <th className="px-5 py-3">Days left</th>
-                  <th className="px-5 py-3">Intent</th>
+                  <th className="px-5 py-3">Provider</th>
+                  <th className="px-5 py-3">Reference</th>
                   <th className="px-5 py-3 text-right">Action</th>
                 </tr>
               </thead>
@@ -185,8 +203,11 @@ export default function AdminPaymentsPage() {
                         {application.daysRemaining === 1 ? "" : "s"}
                       </span>
                     </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {providerLabel(application.paymentProvider)}
+                    </td>
                     <td className="px-5 py-4 font-mono text-xs text-slate-500">
-                      {application.stripePaymentIntentId}
+                      {paymentReference(application)}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <button
