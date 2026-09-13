@@ -110,6 +110,7 @@ export interface AdminApplication {
   paymentStatus: string;
   stripePaymentIntentId: string | null;
   paypalOrderId: string | null;
+  paypalCaptureId: string | null;
   paidAt?: string | null;
   refundedAt?: string | null;
   idDocumentUrl: string | null;
