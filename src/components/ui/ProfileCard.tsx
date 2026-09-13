@@ -13,6 +13,7 @@ export type ProfileCardProps = {
   imageAlt?: string;
   className?: string;
   media?: ReactNode;
+  children?: ReactNode;
 };
 
 export function ProfileCard({
@@ -24,6 +25,7 @@ export function ProfileCard({
   imageAlt = "",
   className,
   media,
+  children,
 }: ProfileCardProps) {
   const mediaNode =
     media ??
@@ -68,6 +70,7 @@ export function ProfileCard({
           <p className="mt-4 text-left text-sm leading-[1.75] sm:text-base">{bio}</p>
         </div>
       </div>
+      {children}
     </article>
   );
 }

@@ -20,6 +20,21 @@ function formatDate(iso: string | null | undefined) {
   });
 }
 
+function formatEventAmount(amount: unknown, currency: string) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return String(amount ?? "—");
+  const code = (currency || "GBP").toUpperCase();
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: code,
+      maximumFractionDigits: 0,
+    }).format(n);
+  } catch {
+    return `${n} ${code}`;
+  }
+}
+
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -39,6 +54,8 @@ function statusBadge(value: string | null | undefined, type: "status" | "payment
     PAID: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80",
     FAILED: "bg-red-50 text-red-700 ring-1 ring-red-200/80",
     REFUNDED: "bg-slate-100 text-slate-600 ring-1 ring-slate-200/80",
+    SUCCEEDED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80",
+    REFUND: "bg-slate-100 text-slate-600 ring-1 ring-slate-200/80",
     SUPPORTER: "bg-purple-50 text-[#660066] ring-1 ring-[#660066]/20",
     CLAIMANT: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/80",
   };
@@ -512,19 +529,25 @@ export function AdminApplicationViewer({
             value: application.paypalCaptureId,
             mono: true,
           },
-          { label: "Paid at", value: formatDate(application.paidAt) },
-          { label: "Refunded at", value: formatDate(application.refundedAt) },
+          { label: "Paid at", value: application.paidAt ? formatDate(application.paidAt) : null },
+          {
+            label: "Refunded at",
+            value:
+              application.paymentStatus === "REFUNDED" && application.refundedAt
+                ? formatDate(application.refundedAt)
+                : null,
+          },
           { label: "DocuSign status", value: application.docusignStatus, badge: true },
           {
             label: "DocuSign envelope",
             value: application.docusignEnvelopeId,
             mono: true,
           },
-          { label: "ID verified at", value: formatDate(application.idVerifiedAt) },
-          { label: "Legal signed at", value: formatDate(application.legalSignedAt) },
-          { label: "Risk accepted at", value: formatDate(application.riskAcceptedAt) },
-          { label: "Created", value: formatDate(application.createdAt) },
-          { label: "Last updated", value: formatDate(application.updatedAt) },
+          { label: "ID verified at", value: application.idVerifiedAt ? formatDate(application.idVerifiedAt) : null },
+          { label: "Legal signed at", value: application.legalSignedAt ? formatDate(application.legalSignedAt) : null },
+          { label: "Risk accepted at", value: application.riskAcceptedAt ? formatDate(application.riskAcceptedAt) : null },
+          { label: "Created", value: application.createdAt ? formatDate(application.createdAt) : null },
+          { label: "Last updated", value: application.updatedAt ? formatDate(application.updatedAt) : null },
         ]}
       />
 
@@ -620,8 +643,13 @@ export function AdminApplicationViewer({
             </p>
           </div>
           <ul className="divide-y divide-slate-100">
-            {application.paymentEvents.map((event) => (
-              <li key={event.id} className="px-5 py-4">
+            {[...application.paymentEvents]
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              )
+              .map((event) => (
+              <li key={event.id || event.providerEventId} className="px-5 py-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-slate-900">{event.provider}</span>
                   <span className="text-slate-300">·</span>
@@ -629,7 +657,7 @@ export function AdminApplicationViewer({
                   {statusBadge(event.status, "payment")}
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
-                  {event.amount} {event.currency} · {formatDate(event.createdAt)}
+                  {formatEventAmount(event.amount, event.currency)} · {formatDate(event.createdAt)}
                 </p>
               </li>
             ))}

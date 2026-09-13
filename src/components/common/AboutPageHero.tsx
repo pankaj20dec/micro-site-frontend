@@ -1,4 +1,4 @@
-import { BandTitleBlock, Container, ProfileCard, Section } from "@/components/ui";
+import { BandTitleBlock, Container, ProfileCard, QuoteCallout, Section } from "@/components/ui";
 import { suzanneRabProfile } from "@/lib/about-profile";
 
 /** About page hero — Figma node 103:2857 (ABOUT US title + profile card). */
@@ -15,7 +15,15 @@ export function AboutPageHero() {
           linkedInLabel={suzanneRabProfile.linkedInLabel}
           imageSrc={suzanneRabProfile.imageSrc}
           imageAlt={suzanneRabProfile.imageAlt}
-        />
+        >
+          <div className="mt-5 grid gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-5 md:mt-10">
+            {suzanneRabProfile.quotes.map((quote) => (
+              <QuoteCallout key={quote.label} label={quote.label}>
+                &ldquo;{quote.text}&rdquo;
+              </QuoteCallout>
+            ))}
+          </div>
+        </ProfileCard>
       </Container>
     </Section>
   );

@@ -77,6 +77,7 @@ export function PayPalCheckoutModal({ open, amount, onClose, onError }: Props) {
   function continueToPayPal() {
     if (!approveUrl) return;
     sessionStorage.setItem("paypal_checkout_pending", "1");
+    sessionStorage.setItem("paypal_checkout_amount", String(amount));
     window.location.href = approveUrl;
   }
 

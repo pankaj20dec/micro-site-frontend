@@ -22,7 +22,7 @@ const steps = [
   {
     Icon: IconSealCheck,
     title: "Sign Documents",
-    text: "engagement letter, Power of Attorney and litigation management agreement online. It takes about 15 minutes.",
+    text: "Execute the engagement letter, Power of Attorney and litigation management agreement online. It takes about 15 minutes.",
   },
   {
     Icon: IconDocumentsStack,
