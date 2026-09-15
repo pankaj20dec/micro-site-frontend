@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  experimental: {
+    // DocuSign envelope create + recipient view can exceed nginx/Next's 60s default.
+    proxyTimeout: 180_000,
+  },
 };
 
 export default nextConfig;

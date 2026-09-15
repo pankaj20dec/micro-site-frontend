@@ -9,25 +9,41 @@ function authHeaders() {
   };
 }
 
+function htmlOrGatewayMessage(status: number, text: string) {
+  const lowered = text.toLowerCase();
+  const isGateway =
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    status === 408 ||
+    lowered.includes("504") ||
+    lowered.includes("502") ||
+    lowered.includes("gateway time") ||
+    lowered.includes("bad gateway") ||
+    lowered.includes("<html");
+  if (isGateway) {
+    return "DocuSign took too long to open (server timeout). Wait a few seconds and click Review Engagement Documents again.";
+  }
+  if (
+    lowered.includes("internal server error") ||
+    lowered.includes("econnrefused")
+  ) {
+    return "Could not reach the API. Ensure the backend is running (default port 5000) and restart the Next.js app if you changed PORT.";
+  }
+  return "";
+}
+
 async function parseApiJson(res: Response) {
   const text = await res.text();
   if (!text) {
+    const gateway = htmlOrGatewayMessage(res.status, "");
+    if (gateway && !res.ok) throw new Error(gateway);
     return { data: {}, ok: res.ok, status: res.status };
   }
   try {
     return { data: JSON.parse(text), ok: res.ok, status: res.status };
   } catch {
-    const lowered = text.toLowerCase();
-    if (
-      lowered.includes("internal server error") ||
-      lowered.includes("econnrefused") ||
-      lowered.includes("bad gateway")
-    ) {
-      throw new Error(
-        "Could not reach the API. Ensure the backend is running (default port 5000) and restart the Next.js dev server if you changed PORT."
-      );
-    }
-    throw new Error(text.slice(0, 200));
+    throw new Error(htmlOrGatewayMessage(res.status, text) || text.slice(0, 200));
   }
 }
 
