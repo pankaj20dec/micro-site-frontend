@@ -38,6 +38,13 @@ function formatEventAmount(amount: unknown, currency: string) {
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    if (value.every((item) => item === null || typeof item !== "object")) {
+      return value.map(String).join(", ");
+    }
+    return JSON.stringify(value, null, 2);
+  }
   if (typeof value === "object") return JSON.stringify(value, null, 2);
   return String(value);
 }
@@ -142,7 +149,7 @@ function JsonSection({
       typeof value === "object" && value !== null && !Array.isArray(value)
         ? JSON.stringify(value, null, 2)
         : value,
-    mono: typeof value === "object",
+    mono: typeof value === "object" && value !== null && !Array.isArray(value),
   }));
 
   return <DataSection title={title} rows={rows} />;

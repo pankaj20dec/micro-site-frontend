@@ -363,9 +363,9 @@ export default function AccordionRegistration({ application }: Props) {
   const pmiSaved = (savedStage1.pmi as Record<string, unknown>) ?? {};
   const [pmiIncomeSource, setPmiIncomeSource] = useState(str(pmiSaved.incomeSource));
   const [pmiPaidAxa, setPmiPaidAxa] = useState(!!pmiSaved.paidDirectlyAxa);
-  const [pmiAxaYears, setPmiAxaYears] = useState(str(pmiSaved.axaYears));
+  const [pmiAxaYears, setPmiAxaYears] = useState(() => parseYearList(pmiSaved.axaYears));
   const [pmiPaidBupa, setPmiPaidBupa] = useState(!!pmiSaved.paidDirectlyBupa);
-  const [pmiBupaYears, setPmiBupaYears] = useState(str(pmiSaved.bupaYears));
+  const [pmiBupaYears, setPmiBupaYears] = useState(() => parseYearList(pmiSaved.bupaYears));
   const [pmiPaidCompany, setPmiPaidCompany] = useState(!!pmiSaved.paidThroughCompany);
   const [pmiCompanyName, setPmiCompanyName] = useState(str(pmiSaved.companyName));
   const [pmiCompanyNumber, setPmiCompanyNumber] = useState(str(pmiSaved.companyNumber));
@@ -416,9 +416,9 @@ export default function AccordionRegistration({ application }: Props) {
   function applyPmiFromRecord(pmi: Record<string, unknown>) {
     setPmiIncomeSource(str(pmi.incomeSource));
     setPmiPaidAxa(!!pmi.paidDirectlyAxa);
-    setPmiAxaYears(str(pmi.axaYears));
+    setPmiAxaYears(parseYearList(pmi.axaYears));
     setPmiPaidBupa(!!pmi.paidDirectlyBupa);
-    setPmiBupaYears(str(pmi.bupaYears));
+    setPmiBupaYears(parseYearList(pmi.bupaYears));
     setPmiPaidCompany(!!pmi.paidThroughCompany);
     setPmiCompanyName(str(pmi.companyName));
     setPmiCompanyNumber(str(pmi.companyNumber));
@@ -1327,11 +1327,11 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please select at least one entity through which you were paid.");
       return;
     }
-    if (pmiPaidAxa && !pmiAxaYears) {
+    if (pmiPaidAxa && pmiAxaYears.length === 0) {
       setError("Please select the years you were paid directly by AXA.");
       return;
     }
-    if (pmiPaidBupa && !pmiBupaYears) {
+    if (pmiPaidBupa && pmiBupaYears.length === 0) {
       setError("Please select the years you were paid directly by BUPA.");
       return;
     }
@@ -2037,7 +2037,9 @@ function AccordionItem({
   return (
     <div
       id={sectionId ? `register-section-${sectionId}` : undefined}
-      className="scroll-mt-28 overflow-hidden rounded-xl border border-zinc-200"
+      className={`scroll-mt-28 rounded-xl border border-zinc-200 ${
+        isOpen ? "overflow-visible" : "overflow-hidden"
+      }`}
     >
       <button
         type="button"
@@ -4078,6 +4080,19 @@ const PRACTICE_YEARS = Array.from(
   (_, i) => String(new Date().getFullYear() - i)
 );
 
+function parseYearList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item).trim()).filter(Boolean))].sort(
+      (a, b) => Number(b) - Number(a)
+    );
+  }
+  const raw = String(value ?? "").trim();
+  if (!raw) return [];
+  return [...new Set(raw.split(/[,;|]/).map((part) => part.trim()).filter(Boolean))].sort(
+    (a, b) => Number(b) - Number(a)
+  );
+}
+
 function PracticeLabel({ children }: { children: ReactNode }) {
   return (
     <label className="mb-1 block text-sm font-semibold text-[#660066]">
@@ -4099,12 +4114,12 @@ function PmiRelationshipPanel(p: {
   setIncomeSource: (v: string) => void;
   paidAxa: boolean;
   setPaidAxa: (v: boolean) => void;
-  axaYears: string;
-  setAxaYears: (v: string) => void;
+  axaYears: string[];
+  setAxaYears: (v: string[]) => void;
   paidBupa: boolean;
   setPaidBupa: (v: boolean) => void;
-  bupaYears: string;
-  setBupaYears: (v: string) => void;
+  bupaYears: string[];
+  setBupaYears: (v: string[]) => void;
   paidCompany: boolean;
   setPaidCompany: (v: boolean) => void;
   companyName: string;
@@ -5375,8 +5390,8 @@ function PmiEntityYearRow({
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
-  years: string;
-  onYearsChange: (v: string) => void;
+  years: string[];
+  onYearsChange: (v: string[]) => void;
   yearsLabel?: string;
 }) {
   return (
@@ -5386,19 +5401,61 @@ function PmiEntityYearRow({
       </FipoCheckbox>
       <div className="w-full sm:max-w-[380px] sm:shrink-0">
         <PracticeLabel>{yearsLabel}</PracticeLabel>
-        <select
-          className={practiceFieldCls}
-          value={years}
-          onChange={(e) => onYearsChange(e.target.value)}
-          disabled={!checked}
-        >
-          <option value="">Select Year</option>
-          {PRACTICE_YEARS.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+        <YearMultiSelect years={years} onYearsChange={onYearsChange} disabled={!checked} />
+      </div>
+    </div>
+  );
+}
+
+function YearMultiSelect({
+  years,
+  onYearsChange,
+  disabled = false,
+}: {
+  years: string[];
+  onYearsChange: (v: string[]) => void;
+  disabled?: boolean;
+}) {
+  const selected = new Set(years);
+
+  function toggle(year: string) {
+    if (disabled) return;
+    if (selected.has(year)) {
+      onYearsChange(years.filter((item) => item !== year));
+      return;
+    }
+    onYearsChange([...years, year].sort((a, b) => Number(b) - Number(a)));
+  }
+
+  return (
+    <div
+      className={`rounded-lg border border-zinc-300 bg-white ${
+        disabled ? "pointer-events-none bg-zinc-50 opacity-60" : ""
+      }`}
+    >
+      <p className="border-b border-zinc-200 px-3 py-2 text-xs text-zinc-500">
+        {years.length === 0
+          ? "Select one or more years"
+          : `${years.length} year${years.length === 1 ? "" : "s"} selected`}
+      </p>
+      <div className="grid max-h-48 grid-cols-3 gap-x-2 gap-y-1 overflow-y-auto p-2 sm:grid-cols-4">
+        {PRACTICE_YEARS.map((year) => (
+          <label
+            key={year}
+            className={`flex cursor-pointer items-center gap-1.5 rounded px-1 py-1 text-sm ${
+              selected.has(year) ? "bg-[#f7f2f8] font-medium text-[#660066]" : "text-[#223645]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={selected.has(year)}
+              onChange={() => toggle(year)}
+              disabled={disabled}
+              className="h-3.5 w-3.5 shrink-0 accent-[#802B7D]"
+            />
+            {year}
+          </label>
+        ))}
       </div>
     </div>
   );
