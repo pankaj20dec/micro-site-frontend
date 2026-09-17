@@ -171,6 +171,11 @@ export function Footer({ compact = false }: { compact?: boolean }) {
         <div className="mt-11 border-t border-white/20 pt-6 text-center text-[11px] font-normal leading-relaxed text-white sm:mt-14 sm:text-xs">
           <p>{siteFooter.legalLine1}</p>
           <p className="mt-1.5">{siteFooter.legalLine2}</p>
+          <p className="mt-1.5">
+            <Link href="/privacy" className="transition hover:underline">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
       </Container>
     </footer>

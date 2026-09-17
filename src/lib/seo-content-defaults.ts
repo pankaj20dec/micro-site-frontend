@@ -7,6 +7,7 @@ export const SEO_PAGE_KEYS = [
   "news",
   "explanations",
   "register",
+  "privacy",
 ] as const;
 
 export type SeoPageKey = (typeof SEO_PAGE_KEYS)[number];
@@ -33,6 +34,7 @@ export const SEO_PAGE_PATHS: Record<SeoPageKey, string> = {
   news: "/news",
   explanations: "/explanations",
   register: "/register",
+  privacy: "/privacy",
 };
 
 export const SEO_PAGE_LABELS: Record<SeoPageKey, string> = {
@@ -44,6 +46,7 @@ export const SEO_PAGE_LABELS: Record<SeoPageKey, string> = {
   news: "News",
   explanations: "Explanations",
   register: "Register",
+  privacy: "Privacy Policy",
 };
 
 const defaultPageSeo: Record<SeoPageKey, PageSeoFields> = {
@@ -93,6 +96,12 @@ const defaultPageSeo: Record<SeoPageKey, PageSeoFields> = {
     title: "Register | FIPO Fair Pay Action Group",
     description:
       "Register your interest and join the FIPO Fair Pay Action Group legal claim against Bupa and AXA PPP.",
+    noIndex: false,
+  },
+  privacy: {
+    title: "Privacy Policy | FIPO Fair Pay Action Group",
+    description:
+      "How FIPO collects, uses and protects personal data on the Fair Pay Action Group website.",
     noIndex: false,
   },
 };
