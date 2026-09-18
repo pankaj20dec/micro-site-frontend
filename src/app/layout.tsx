@@ -6,6 +6,7 @@ import { HeaderSwitcher } from "@/components/layout/HeaderSwitcher";
 import "./globals.css";
 import { FooterSwitcher } from "@/components/layout/FooterSwitcher";
 import { DisclaimerModal } from "@/components/common/DisclaimerModal";
+import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { SiteLayoutProvider } from "@/components/layout/SiteLayoutProvider";
 
 const poppins = Poppins({
@@ -30,6 +31,7 @@ export default function RootLayout({
         <SiteLayoutProvider>
           <HeaderSwitcher />
           <DisclaimerModal />
+          <CookieConsentBanner />
           <div className="flex flex-1 flex-col">{children}</div>
           <FooterSwitcher />
         </SiteLayoutProvider>

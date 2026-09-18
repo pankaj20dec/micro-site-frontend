@@ -72,6 +72,7 @@ export const defaultSiteFooter: SiteFooterContent = {
     { label: "Contact", href: "/contact" },
     { label: "Login", href: "/login" },
     { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Use", href: "/terms" },
   ],
   contactInfoTitle: "Contact Info",
   contactEmail: "fipo@harcusparker.co.uk",

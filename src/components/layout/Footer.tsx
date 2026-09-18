@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { brand } from "@/lib/brand";
 import { phoneTelHref } from "@/lib/phone-tel";
 import { Container } from "@/components/ui";
 import { useSiteLayout } from "./SiteLayoutProvider";
+import { openCookieConsent } from "@/components/common/CookieConsentBanner";
 
 function IconEnvelope({ className }: { className?: string }) {
   return (
@@ -104,6 +106,9 @@ function FooterBrandCard({
 
 export function Footer({ compact = false }: { compact?: boolean }) {
   const { siteFooter } = useSiteLayout();
+  const pathname = usePathname();
+  const isRegister =
+    pathname === "/register" || Boolean(pathname?.startsWith("/register/"));
 
   return (
     <footer
@@ -175,6 +180,22 @@ export function Footer({ compact = false }: { compact?: boolean }) {
             <Link href="/privacy" className="transition hover:underline">
               Privacy Policy
             </Link>
+            {" · "}
+            <Link href="/terms" className="transition hover:underline">
+              Terms of Use
+            </Link>
+            {!isRegister && (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  onClick={openCookieConsent}
+                  className="transition hover:underline"
+                >
+                  Cookies
+                </button>
+              </>
+            )}
           </p>
         </div>
       </Container>
