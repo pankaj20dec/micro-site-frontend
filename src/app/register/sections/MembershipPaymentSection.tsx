@@ -98,12 +98,28 @@ const StripeCheckoutForm = forwardRef<
 >(function StripeCheckoutForm({ onPaid }, ref) {
   const stripe = useStripe();
   const elements = useElements();
+  const [elementReady, setElementReady] = useState(false);
+  const [elementError, setElementError] = useState<string | null>(null);
 
   useImperativeHandle(ref, () => ({
     async confirm() {
       if (!stripe || !elements) {
-        throw new Error("Payment form is still loading.");
+        throw new Error("Payment form is still loading. Wait for the card fields to appear.");
       }
+      if (elementError) {
+        throw new Error(elementError);
+      }
+      if (!elementReady) {
+        throw new Error(
+          "Card form is still loading. Wait until the card fields appear, then click Continue."
+        );
+      }
+
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        throw new Error(submitError.message ?? "Please complete your card details.");
+      }
+
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: "if_required",
@@ -123,7 +139,33 @@ const StripeCheckoutForm = forwardRef<
     },
   }));
 
-  return <PaymentElement options={{ layout: "tabs" }} />;
+  return (
+    <div className="min-h-[180px]">
+      {elementError && (
+        <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {elementError}
+        </p>
+      )}
+      <PaymentElement
+        options={{
+          layout: "tabs",
+          paymentMethodOrder: ["card"],
+          wallets: { applePay: "never", googlePay: "never" },
+        }}
+        onReady={() => {
+          setElementReady(true);
+          setElementError(null);
+        }}
+        onLoadError={(event) => {
+          setElementReady(false);
+          setElementError(
+            event.error?.message ||
+              "Could not load the card form. Check that the frontend pk_live_ key matches the backend sk_live_ key, then rebuild the site."
+          );
+        }}
+      />
+    </div>
+  );
 });
 
 function StubStripeNotice() {
@@ -430,6 +472,7 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
                   <StubStripeNotice />
                 ) : (
                   <Elements
+                    key={clientSecret}
                     stripe={stripePromise}
                     options={{
                       clientSecret: clientSecret!,
