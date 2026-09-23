@@ -429,7 +429,7 @@ export const explanationsDocuments = {
     {
       number: "02",
       title: "The Power of Attorney",
-      body: ["This is a the key document. By signing it, you authorise FIPO to manage your claim on your behalf day to day, to instruct lawyers on your behalf day to day, and to make all decisions in relation to your claim — including whether and when to settle. You should read it carefully.", "The documents, including the Power of Attorney, become irrevocable after a 14-day cooling-off period. If you die or become incapacitated while the Claim is ongoing, the Power of Attorney will be automatically revoked and your personal representatives will need to execute a new one to continue your claim."]
+      body: ["This is a key document. By signing it, you authorise FIPO to manage your claim on your behalf day to day, to instruct lawyers on your behalf day to day, and to make all decisions in relation to your claim — including whether and when to settle. You should read it carefully.", "The documents, including the Power of Attorney, become irrevocable after a 14-day cooling-off period. If you die or become incapacitated while the Claim is ongoing, the Power of Attorney will be automatically revoked and your personal representatives will need to execute a new one to continue your claim."]
     },
     {
       number: "03",

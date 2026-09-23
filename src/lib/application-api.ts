@@ -24,11 +24,11 @@ function htmlOrGatewayMessage(status: number, text: string) {
   if (isGateway) {
     return "DocuSign took too long to open (server timeout). Wait a few seconds and click Review Engagement Documents again.";
   }
-  if (
-    lowered.includes("internal server error") ||
-    lowered.includes("econnrefused")
-  ) {
+  if (lowered.includes("econnrefused")) {
     return "Could not reach the API. Ensure the backend is running (default port 5000) and restart the Next.js app if you changed PORT.";
+  }
+  if (lowered.includes("internal server error")) {
+    return "The API returned an error. Check the backend terminal (npm run dev) for details, then try again.";
   }
   return "";
 }
