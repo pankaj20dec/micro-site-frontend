@@ -121,8 +121,8 @@ export interface AdminApplication {
   stage1Data: Record<string, unknown> | null;
   stage2Data: Record<string, unknown> | null;
   riskAcceptedAt: string | null;
-  evidenceFiles: AdminEvidenceFile[];
-  paymentEvents: AdminPaymentEvent[];
+  evidenceFiles?: AdminEvidenceFile[];
+  paymentEvents?: AdminPaymentEvent[];
   createdAt: string;
   updatedAt: string;
 }

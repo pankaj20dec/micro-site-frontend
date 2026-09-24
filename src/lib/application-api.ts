@@ -28,7 +28,7 @@ function htmlOrGatewayMessage(status: number, text: string) {
     return "Could not reach the API. Ensure the backend is running (default port 5000) and restart the Next.js app if you changed PORT.";
   }
   if (lowered.includes("internal server error")) {
-    return "The API returned an error. Check the backend terminal (npm run dev) for details, then try again.";
+    return `The API returned an error (HTTP ${status}). DocuSign calls can take up to 60–90 seconds locally. Keep both dev servers running, avoid saving backend files while waiting (auto-restart), then check the backend terminal and browser DevTools → Network → Response.`;
   }
   return "";
 }
@@ -307,6 +307,9 @@ export type DocusignStatusResponse = {
   rateLimited?: boolean;
   webhookConfigured?: boolean;
   configured?: boolean;
+  envelopeMissing?: boolean;
+  code?: string;
+  error?: string;
   signerEmail?: string | null;
   signers?: { name?: string; email?: string; status?: string; roleName?: string | null; routingOrder?: string | null }[];
   multipleSigners?: boolean;
@@ -329,6 +332,14 @@ export async function fetchDocusignStatus(options?: {
     throw new Error("Session expired. Please sign in again.");
   }
   if (!ok) {
+    if (data.envelopeMissing || data.code === "ENVELOPE_DOES_NOT_EXIST") {
+      return {
+        ...(data as DocusignStatusResponse),
+        envelopeMissing: true,
+        status: null,
+        signers: Array.isArray(data.signers) ? data.signers : [],
+      };
+    }
     throw new Error(typeof data.error === "string" ? data.error : "Failed to load signing status");
   }
   return data as DocusignStatusResponse;
@@ -588,10 +599,15 @@ export function isClaimantSigningComplete(
 }
 
 export function shouldOfferStage1Restart(
-  data: Pick<DocusignStatusResponse, "status" | "signers" | "allSignersCompleted">,
+  data: Pick<
+    DocusignStatusResponse,
+    "status" | "signers" | "allSignersCompleted" | "envelopeMissing"
+  >,
   witnessEmail?: string,
   _options?: { stage1MarkedComplete?: boolean }
 ) {
+  if (data.envelopeMissing) return true;
+
   const status = data.status;
   const signers = data.signers ?? [];
 

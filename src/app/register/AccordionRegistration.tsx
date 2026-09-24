@@ -4406,7 +4406,10 @@ function RegistrationDocuSignSection({
   const [statusContext, setStatusContext] = useState<DocusignStatusResponse | null>(null);
   const [needsStage1Restart, setNeedsStage1Restart] = useState(false);
   const signed = declarationSigned || stubComplete;
-  const resolvedStatus = statusContext?.status ?? docusignStatus;
+  const envelopeMissing = !!statusContext?.envelopeMissing;
+  const resolvedStatus = envelopeMissing
+    ? null
+    : (statusContext?.status ?? docusignStatus);
   const envelopeComplete = isDocusignComplete(resolvedStatus);
   const signerProgress = describeEnvelopeSignerProgress(
     statusContext ?? { signers: undefined },
@@ -4470,7 +4473,9 @@ function RegistrationDocuSignSection({
     returnContext === "claimant-stage2" &&
     !stage1ReadyForWitness &&
     !stage2RemoteComplete &&
-    ((needsStage1Restart && statusCheckedForRestart) || envelopeLockedCompleted);
+    ((needsStage1Restart && statusCheckedForRestart) ||
+      envelopeLockedCompleted ||
+      envelopeMissing);
   const showSignedSuccess =
     returnContext === "claimant-stage2"
       ? !showStage2RestartPrompt && !stubMode && stage2RemoteComplete
@@ -4504,8 +4509,11 @@ function RegistrationDocuSignSection({
 
   function applyStatusData(data: DocusignStatusResponse) {
     const status = data.status ? String(data.status) : "";
-    if (status) onStatusChange(status);
+    if (status && !data.envelopeMissing) onStatusChange(status);
     setStatusContext(data);
+    if (data.envelopeMissing) {
+      markNeedsStage1Restart(true);
+    }
     if (data.rateLimited) {
       setError(
         "DocuSign rate limit reached. Showing last saved status — try Refresh again in a few minutes."
@@ -4673,10 +4681,11 @@ function RegistrationDocuSignSection({
 
   useEffect(() => {
     if (!stage1Complete || returnContext !== "claimant-stage2" || stubMode) return;
+    if (statusContext?.envelopeMissing) return;
     if (isDocusignInProgress(resolvedStatus)) {
       markNeedsStage1Restart(false);
     }
-  }, [stage1Complete, returnContext, resolvedStatus, stubMode]);
+  }, [stage1Complete, returnContext, resolvedStatus, stubMode, statusContext?.envelopeMissing]);
 
   useEffect(() => {
     if (!envelopeLockedCompleted) return;
@@ -4952,18 +4961,32 @@ function RegistrationDocuSignSection({
       setError("No signing URL was returned. Please try again.");
     } catch (err) {
       const e = err as Error & { consentUrl?: string; hint?: string; code?: string };
-      if (
+      const staleSession =
         e.code === "ENVELOPE_ALREADY_COMPLETED" ||
-        /invalid envelope status/i.test(e.message || "")
-      ) {
+        e.code === "ENVELOPE_DOES_NOT_EXIST" ||
+        e.code === "CANNOT_REOPEN_SIGNING" ||
+        /invalid envelope status/i.test(e.message || "") ||
+        /signing session is no longer available/i.test(e.message || "");
+      if (staleSession) {
         markNeedsStage1Restart(true);
         setError(null);
         onClearSigned?.();
         if (returnContext === "claimant-stage2") {
+          const missingEnvelope =
+            e.code === "ENVELOPE_DOES_NOT_EXIST" ||
+            e.code === "CANNOT_REOPEN_SIGNING" ||
+            /signing session is no longer available/i.test(e.message || "");
           setStatusContext((prev) =>
             prev
-              ? { ...prev, status: "COMPLETED" }
-              : ({ status: "COMPLETED", signers: [] } as DocusignStatusResponse)
+              ? {
+                  ...prev,
+                  ...(missingEnvelope
+                    ? { envelopeMissing: true, status: null }
+                    : { status: "COMPLETED" }),
+                }
+              : missingEnvelope
+                ? ({ status: null, signers: [], envelopeMissing: true } as DocusignStatusResponse)
+                : ({ status: "COMPLETED", signers: [] } as DocusignStatusResponse)
           );
         }
       } else {
@@ -5266,7 +5289,13 @@ function RegistrationDocuSignSection({
           {(docusignStatus === "SENT" || docusignStatus === "DELIVERED") && (
             <button
               type="button"
-              onClick={() => handleStartSigning(true)}
+              onClick={() => {
+                if (returnContext === "claimant-stage2" && onGoToStage1) {
+                  onGoToStage1();
+                  return;
+                }
+                void handleStartSigning(true);
+              }}
               disabled={loading || (needsPmiFiles && uploadsInProgress) || !filesReady}
               className="rounded-lg border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
             >
@@ -5291,12 +5320,24 @@ function RegistrationDocuSignSection({
       {showStage2RestartPrompt && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm leading-relaxed text-amber-950">
-            DocuSign shows this envelope as <strong>Completed</strong> after Stage 1
-            only — the witness never got a turn, so Stage 2 cannot open signing on
-            it. Go to Stage 1 and click <strong>Sign again</strong> to create a{" "}
-            <strong>new</strong> envelope. Sign as the claimant only (status should
-            stay <strong>Sent</strong>, not Completed), then return here for the
-            witness.
+            {envelopeMissing
+              ? (
+                <>
+                  This signing session is no longer available. Go to Stage 1 and click{" "}
+                  <strong>Sign again</strong> to create a new envelope. Sign as the
+                  claimant, then return here to send it to your witness.
+                </>
+              )
+              : (
+                <>
+                  DocuSign shows this envelope as <strong>Completed</strong> after Stage 1
+                  only — the witness never got a turn, so Stage 2 cannot open signing on
+                  it. Go to Stage 1 and click <strong>Sign again</strong> to create a{" "}
+                  <strong>new</strong> envelope. Sign as the claimant only (status should
+                  stay <strong>Sent</strong>, not Completed), then return here for the
+                  witness.
+                </>
+              )}
           </p>
           <button
             type="button"
