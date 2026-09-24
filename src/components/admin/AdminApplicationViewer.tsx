@@ -420,6 +420,8 @@ export function AdminApplicationViewer({
   const [refunding, setRefunding] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
   const [refundMessage, setRefundMessage] = useState<string | null>(null);
+  const evidenceFiles = application.evidenceFiles ?? [];
+  const paymentEvents = application.paymentEvents ?? [];
 
   const refundInfo = useMemo(() => {
     const isSuperAdmin = getAdmin()?.role === "SUPER_ADMIN";
@@ -435,7 +437,7 @@ export function AdminApplicationViewer({
 
     const paidAtRaw =
       application.paidAt ||
-      application.paymentEvents.find(
+      paymentEvents.find(
         (event) =>
           event.status === "succeeded" ||
           event.status === "COMPLETED" ||
@@ -458,7 +460,7 @@ export function AdminApplicationViewer({
       deadline,
       daysRemaining: Math.ceil(msLeft / (24 * 60 * 60 * 1000)),
     };
-  }, [application]);
+  }, [application, paymentEvents]);
 
   async function handleRefund() {
     const fee =
@@ -500,10 +502,10 @@ export function AdminApplicationViewer({
     stage2?.witness && typeof stage2.witness === "object"
       ? (stage2.witness as Record<string, unknown>)
       : null;
-  const witnessProofFiles = application.evidenceFiles.filter((file) =>
+  const witnessProofFiles = evidenceFiles.filter((file) =>
     isWitnessEvidenceUploadKey(file.uploadKey)
   );
-  const otherEvidenceFiles = application.evidenceFiles.filter(
+  const otherEvidenceFiles = evidenceFiles.filter(
     (file) => !isWitnessEvidenceUploadKey(file.uploadKey)
   );
 
@@ -640,17 +642,17 @@ export function AdminApplicationViewer({
 
       <EvidenceSection applicationId={application.id} files={otherEvidenceFiles} />
 
-      {application.paymentEvents.length > 0 && (
+      {paymentEvents.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white">
           <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
             <h3 className="text-sm font-semibold text-slate-900">Payment events</h3>
             <p className="mt-0.5 text-xs text-slate-500">
-              {application.paymentEvents.length} recorded event
-              {application.paymentEvents.length === 1 ? "" : "s"}
+              {paymentEvents.length} recorded event
+              {paymentEvents.length === 1 ? "" : "s"}
             </p>
           </div>
           <ul className="divide-y divide-slate-100">
-            {[...application.paymentEvents]
+            {[...paymentEvents]
               .sort(
                 (a, b) =>
                   new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

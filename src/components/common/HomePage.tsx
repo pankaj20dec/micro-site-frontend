@@ -16,7 +16,7 @@ export function HomePage() {
       <ActionJoinSection />
       <AboutSection />
       <ClaimSection />
-      <StepsSection />
+      {/* <StepsSection /> */}
       <FeesSection />
     </div>
   );
