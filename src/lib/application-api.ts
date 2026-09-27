@@ -209,9 +209,30 @@ export async function capturePaypalOrder(orderId: string) {
   return data;
 }
 
+const EVIDENCE_MAX_BYTES = 15 * 1024 * 1024;
+// Nginx and some Next proxies still default to 1 MB. Stay under that per request.
+const EVIDENCE_CHUNK_BYTES = 512 * 1024;
+
+async function postEvidenceBody(
+  uploadUrl: string,
+  method: string,
+  headers: Record<string, string>,
+  body: Blob
+) {
+  const uploadRes = await fetch(uploadUrl, { method, headers, body });
+  if (uploadRes.status === 202) return uploadRes;
+  if (!uploadRes.ok) {
+    const uploadError = await uploadRes.text().catch(() => "");
+    if (uploadRes.status === 413) {
+      throw new Error("This file is too large. Please upload a PDF, JPG or PNG under 15 MB.");
+    }
+    throw new Error(uploadError || "File upload to storage failed");
+  }
+  return uploadRes;
+}
+
 export async function uploadEvidenceFile(file: File, uploadKey: string) {
-  const maxBytes = 15 * 1024 * 1024;
-  if (file.size > maxBytes) {
+  if (file.size > EVIDENCE_MAX_BYTES) {
     throw new Error("This file is too large. Please upload a PDF, JPG or PNG under 15 MB.");
   }
 
@@ -252,17 +273,29 @@ export async function uploadEvidenceFile(file: File, uploadKey: string) {
       if (token) uploadHeaders.Authorization = `Bearer ${token}`;
     }
 
-    const uploadRes = await fetch(uploadUrl, {
-      method: target.method || "PUT",
-      headers: uploadHeaders,
-      body: file,
-    });
-    if (!uploadRes.ok) {
-      const uploadError = await uploadRes.text().catch(() => "");
-      if (uploadRes.status === 413) {
-        throw new Error("This file is too large. Please upload a PDF, JPG or PNG under 15 MB.");
+    const method = target.method || "PUT";
+    if (usesApiUpload && file.size > EVIDENCE_CHUNK_BYTES) {
+      const total = Math.ceil(file.size / EVIDENCE_CHUNK_BYTES);
+      let lastRes: Response | null = null;
+      for (let index = 0; index < total; index += 1) {
+        const start = index * EVIDENCE_CHUNK_BYTES;
+        const chunk = file.slice(start, Math.min(file.size, start + EVIDENCE_CHUNK_BYTES));
+        lastRes = await postEvidenceBody(
+          uploadUrl,
+          method,
+          {
+            ...uploadHeaders,
+            "X-Chunk-Index": String(index),
+            "X-Chunk-Count": String(total),
+          },
+          chunk
+        );
       }
-      throw new Error(uploadError || "File upload to storage failed");
+      if (lastRes && lastRes.status !== 201) {
+        throw new Error("File upload to storage failed");
+      }
+    } else {
+      await postEvidenceBody(uploadUrl, method, uploadHeaders, file);
     }
 
     return saveEvidenceFile({
