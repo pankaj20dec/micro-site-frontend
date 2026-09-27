@@ -21,6 +21,39 @@ export function clearUserToken() {
   window.localStorage.removeItem(KEY);
 }
 
+const IMPERSONATE_KEY = "fipo_impersonating";
+
+export type ImpersonationInfo = {
+  email: string;
+  name: string;
+};
+
+export function setImpersonation(info: ImpersonationInfo) {
+  window.localStorage.setItem(IMPERSONATE_KEY, JSON.stringify(info));
+}
+
+export function getImpersonation(): ImpersonationInfo | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(IMPERSONATE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as ImpersonationInfo;
+    if (!parsed?.email) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearImpersonation() {
+  window.localStorage.removeItem(IMPERSONATE_KEY);
+}
+
+export function stopImpersonation() {
+  clearUserToken();
+  clearImpersonation();
+}
+
 export function getUser(): UserPayload | null {
   const token = getUserToken();
   if (!token) return null;

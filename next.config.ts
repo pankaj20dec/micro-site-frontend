@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
   experimental: {
     // DocuSign envelope create + recipient view can exceed nginx/Next's 60s default.
     proxyTimeout: 180_000,
+    // Witness/PMI uploads (phone photos) exceed Next 16's 10MB rewrite-proxy default.
+    proxyClientMaxBodySize: "20mb",
   },
 };
 

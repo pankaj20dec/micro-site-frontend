@@ -13,8 +13,10 @@ import { useMounted } from "@/hooks/use-mounted";
 import {
   deleteAdminUser,
   fetchAdminUsers,
+  impersonateAdminUser,
   type AdminUserSummary,
 } from "@/lib/admin-users-api";
+import { setImpersonation, setUserToken } from "@/lib/user-auth";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -72,6 +74,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     const token = getAdminToken();
@@ -118,6 +121,32 @@ export default function AdminUsersPage() {
     );
   }, [users]);
 
+  async function handleLoginAs(user: AdminUserSummary) {
+    if (!isSuperAdmin || user.role !== "USER") return;
+    setImpersonatingId(user.id);
+    setError(null);
+    const tab = window.open("about:blank", "_blank");
+    try {
+      const data = await impersonateAdminUser(user.id);
+      setUserToken(data.token);
+      setImpersonation({
+        email: data.user.email,
+        name: `${data.user.firstName} ${data.user.lastName}`.trim(),
+      });
+      const registerUrl = `${window.location.origin}/register`;
+      if (tab) {
+        tab.location.replace(registerUrl);
+      } else {
+        window.location.assign("/register");
+      }
+    } catch (e) {
+      tab?.close();
+      setError(e instanceof Error ? e.message : "Failed to log in as user");
+    } finally {
+      setImpersonatingId(null);
+    }
+  }
+
   async function handleDelete(user: AdminUserSummary) {
     if (!isSuperAdmin) return;
     if (user.role === "SUPER_ADMIN") return;
@@ -153,7 +182,7 @@ export default function AdminUsersPage() {
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {isSuperAdmin
-              ? "Browse accounts, view registration data, and manage access."
+              ? "Browse accounts, log in as a member to edit their registration, or manage access."
               : "Browse registered accounts. Registration data is available to Super Admin only."}
           </p>
         </div>
@@ -239,6 +268,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {users.map((user) => {
+                  const canLoginAs = isSuperAdmin && user.role === "USER";
                   const canDelete =
                     isSuperAdmin &&
                     user.role !== "SUPER_ADMIN" &&
@@ -288,18 +318,30 @@ export default function AdminUsersPage() {
                       <td className="px-5 py-4 text-slate-600">{formatDate(user.createdAt)}</td>
                       {isSuperAdmin && (
                         <td className="px-5 py-4 text-right">
-                          {canDelete ? (
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(user)}
-                              disabled={deletingId === user.id}
-                              className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
-                            >
-                              {deletingId === user.id ? "Deleting…" : "Delete"}
-                            </button>
-                          ) : (
-                            <span className="text-xs text-slate-300">—</span>
-                          )}
+                          <div className="flex justify-end gap-2">
+                            {canLoginAs && (
+                              <button
+                                type="button"
+                                onClick={() => handleLoginAs(user)}
+                                disabled={impersonatingId === user.id}
+                                className="inline-flex items-center rounded-lg border border-[#660066]/30 bg-[#660066]/5 px-3 py-1.5 text-xs font-medium text-[#660066] transition hover:bg-[#660066]/10 disabled:opacity-50"
+                              >
+                                {impersonatingId === user.id ? "Opening…" : "Login as user"}
+                              </button>
+                            )}
+                            {canDelete ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(user)}
+                                disabled={deletingId === user.id}
+                                className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                              >
+                                {deletingId === user.id ? "Deleting…" : "Delete"}
+                              </button>
+                            ) : !canLoginAs ? (
+                              <span className="text-xs text-slate-300">—</span>
+                            ) : null}
+                          </div>
                         </td>
                       )}
                     </tr>
