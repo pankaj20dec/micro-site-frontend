@@ -210,59 +210,80 @@ export async function capturePaypalOrder(orderId: string) {
 }
 
 export async function uploadEvidenceFile(file: File, uploadKey: string) {
-  const presignRes = await fetch(`${getApiBase()}/api/application/evidence/presign`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({
+  const maxBytes = 15 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    throw new Error("This file is too large. Please upload a PDF, JPG or PNG under 15 MB.");
+  }
+
+  try {
+    const presignRes = await fetch(`${getApiBase()}/api/application/evidence/presign`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        fileSize: file.size,
+        uploadKey,
+      }),
+    });
+    const { data: target, ok: presignOk } = await parseApiJson(presignRes);
+    if (presignRes.status === 401) {
+      clearUserToken();
+      throw new Error("Session expired. Please sign in again.");
+    }
+    if (!presignOk || !target.fileKey) {
+      throw new Error(typeof target.error === "string" ? target.error : "Failed to prepare upload");
+    }
+
+    const uploadUrl = String(target.uploadUrl).startsWith("http")
+      ? String(target.uploadUrl)
+      : `${getApiBase()}${target.uploadUrl}`;
+
+    const uploadHeaders: Record<string, string> = {
+      ...(target.headers || {}),
+    };
+    const usesApiUpload =
+      !String(target.uploadUrl).startsWith("http") ||
+      target.storage === "local" ||
+      target.storage === "spaces" ||
+      target.stub;
+    if (usesApiUpload) {
+      const token = getUserToken();
+      if (token) uploadHeaders.Authorization = `Bearer ${token}`;
+    }
+
+    const uploadRes = await fetch(uploadUrl, {
+      method: target.method || "PUT",
+      headers: uploadHeaders,
+      body: file,
+    });
+    if (!uploadRes.ok) {
+      const uploadError = await uploadRes.text().catch(() => "");
+      if (uploadRes.status === 413) {
+        throw new Error("This file is too large. Please upload a PDF, JPG or PNG under 15 MB.");
+      }
+      throw new Error(uploadError || "File upload to storage failed");
+    }
+
+    return saveEvidenceFile({
       fileName: file.name,
-      mimeType: file.type || "application/octet-stream",
+      fileKey: target.fileKey,
+      uploadKey: String(target.uploadKey || uploadKey),
       fileSize: file.size,
-      uploadKey,
-    }),
-  });
-  const { data: target, ok: presignOk } = await parseApiJson(presignRes);
-  if (presignRes.status === 401) {
-    clearUserToken();
-    throw new Error("Session expired. Please sign in again.");
+      mimeType: file.type || "application/octet-stream",
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err || "");
+    if (
+      err instanceof TypeError ||
+      /networkerror|failed to fetch|load failed/i.test(message)
+    ) {
+      throw new Error(
+        "Could not upload the file. Use a PDF, JPG or PNG under 15 MB, then try again."
+      );
+    }
+    throw err;
   }
-  if (!presignOk || !target.fileKey) {
-    throw new Error(typeof target.error === "string" ? target.error : "Failed to prepare upload");
-  }
-
-  const uploadUrl = String(target.uploadUrl).startsWith("http")
-    ? String(target.uploadUrl)
-    : `${getApiBase()}${target.uploadUrl}`;
-
-  const uploadHeaders: Record<string, string> = {
-    ...(target.headers || {}),
-  };
-  const usesApiUpload =
-    !String(target.uploadUrl).startsWith("http") ||
-    target.storage === "local" ||
-    target.storage === "spaces" ||
-    target.stub;
-  if (usesApiUpload) {
-    const token = getUserToken();
-    if (token) uploadHeaders.Authorization = `Bearer ${token}`;
-  }
-
-  const uploadRes = await fetch(uploadUrl, {
-    method: target.method || "PUT",
-    headers: uploadHeaders,
-    body: file,
-  });
-  if (!uploadRes.ok) {
-    const uploadError = await uploadRes.text().catch(() => "");
-    throw new Error(uploadError || "File upload to storage failed");
-  }
-
-  return saveEvidenceFile({
-    fileName: file.name,
-    fileKey: target.fileKey,
-    uploadKey: String(target.uploadKey || uploadKey),
-    fileSize: file.size,
-    mimeType: file.type || "application/octet-stream",
-  });
 }
 
 export async function saveEvidenceFile(file: {

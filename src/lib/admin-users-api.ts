@@ -44,6 +44,23 @@ export async function fetchAdminUsers(params?: {
   return data as { users: AdminUserSummary[]; total: number; page: number };
 }
 
+export async function impersonateAdminUser(id: string) {
+  const res = await fetch(`${getApiBase()}/api/admin/users/${id}/impersonate`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof data.error === "string" ? data.error : "Failed to log in as user";
+    throw Object.assign(new Error(message), { status: res.status });
+  }
+  return data as {
+    token: string;
+    user: Pick<AdminUserSummary, "id" | "firstName" | "lastName" | "email" | "role">;
+  };
+}
+
 export async function deleteAdminUser(id: string) {
   const res = await fetch(`${getApiBase()}/api/admin/users/${id}`, {
     method: "DELETE",
