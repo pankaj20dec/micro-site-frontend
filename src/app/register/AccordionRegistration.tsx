@@ -2614,7 +2614,7 @@ function ClaimantStage1Panel({
       <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <p className="max-w-[752px] text-[16px] font-normal leading-[30px] text-[#223645]">
         These documents are very important, because they contain the formal terms of your engagement of Harcus Parker as your solicitors and record how much you will be charged if your claim succeeds and they explain the structure of the group and how you will provide FIPO with authority to run the claim on your
-          behalf. The engagement letter annexes a number of documents, including a Damages-Based Agreement (DBA), a Power of Attorney and the Litigation Management Agreement. In order to highlight the separate importance of the Power of Attorney and the Litigation Management Agreement, we ask you specifically to approve them in the next section. For an explanation of why we are structuring the claim in the way we are, see here. 
+          behalf. The engagement letter annexes a number of documents, including a Damages-Based Agreement (DBA), a Power of Attorney (PoA) and the Litigation Management Agreement (LMA). In order to highlight the separate importance of the Power of Attorney and the Litigation Management Agreement, we ask you specifically to approve them in the next section. For an explanation of why we are structuring the claim in the way we are, see here. 
         </p>
         <div
           className="flex h-[150px] w-[160px] shrink-0 items-center justify-center rounded-lg"
@@ -3092,6 +3092,7 @@ function ClaimantStage2Panel({
                 if (file) void handleProofUpload(file);
               }}
             />
+            <p className="text-sm text-[#627489]">{UPLOAD_LIMIT_HINT}</p>
             {uploadError && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</p>
             )}
@@ -3788,12 +3789,12 @@ function LegalDocumentIntroSection({ membershipType }: { membershipType: string 
       </p>
       <ul className="mt-3 list-disc space-y-2 pl-6 text-[16px] font-medium leading-[28px] text-[#263238]">
         <li>
-        To approve the terms of your engagement with Harcus Parker,- and its counsel, Suzanne Rab, and in particular the fee that will be charged if your claim succeeds (if you paid £250 at Step 1, then the fee deducted will be 32.5% + VAT; and if you paid £500 then the fee deducted will be 30% + VAT);
+        To approve the terms of your engagement with Harcus Parker, and its counsel, Suzanne Rab, and in particular the fee that will be charged if your claim succeeds (if you paid £250 at Step 1, then the fee deducted will be 32.5% + VAT; if you paid £500 then the fee deducted will be 30% + VAT)
         </li>
         <li>
         To execute a Power of Attorney in FIPO’s favour authorising FIPO to manage the proceedings against the PMIs on your behalf;
         </li>
-        <li>To sign a “Litigation Management Agreement which regulates the relationship between you, FIPO, Harcus Parker as the solicitors who will be acting on your behalf and other members of the FIPO Fair Pay Action Group; and</li>
+        <li>To sign a Litigation Management Agreement which regulates the relationship between you, FIPO, Harcus Parker as the solicitors who will be acting on your behalf and other members of the FIPO Fair Pay Action Group; and</li>
         <li>To sign a declaration which records your understanding of the main features of the arrangements. Please note that you can read a fuller description and review the documents in full here.</li>
       </ul>
 
@@ -5502,6 +5503,8 @@ function YearMultiSelect({
   );
 }
 
+const UPLOAD_LIMIT_HINT = "The upload limit is 15 MB per file (PDF, JPG, or PNG).";
+
 const EVIDENCE_FILE_TYPES = [
   { label: "PDF", border: "#DC2626", text: "#DC2626" },
   { label: "JPG", border: "#16A34A", text: "#16A34A" },
@@ -5523,7 +5526,7 @@ type EvidenceUploadFile = {
 
 function EvidenceFileDropzone({
   uploadKey,
-  maxSizeMb = 10,
+  maxSizeMb = 15,
   compact = false,
   footerLayout = "stacked",
   ctaText = "Drag Files Here or Click to Upload",
@@ -5664,6 +5667,7 @@ function EvidenceFileDropzone({
           onChange={(e) => e.target.files && handleFiles(e.target.files)}
         />
       </div>
+      <p className="mt-2 text-sm text-[#627489]">{UPLOAD_LIMIT_HINT}</p>
       {uploads.length > 0 && (
         <ul className="mt-3 space-y-1">
           {uploads.map((f) => (
@@ -6150,8 +6154,9 @@ function EvidenceUploadsPanel({
         </div>
         <div className="mt-5">
           <FipoCheckbox checked={noIncomeEvidence} onChange={setNoIncomeEvidence}>
-          I prefer not to upload income documents at this stage. My approximate average annual income from PMI work during peak years was
+          I prefer not to upload income documents at this stage.
           </FipoCheckbox>
+         
         </div>
         <div className="mt-5 max-w-md">
           <PracticeLabel>What is your total annual income?</PracticeLabel>
@@ -6176,6 +6181,9 @@ function EvidenceUploadsPanel({
         <p className="mt-4 text-[15px] font-medium leading-[28px] text-[#627489]">
            Documentary proof may be requested later for precise damages calculation.
         </p>
+        <p className="mt-2 text-[15px] font-medium leading-[28px] text-[#223645]">
+          My approximate average annual income from PMI work during peak years was £{incomePerYear}.
+          </p>
       </section>
 
       {/* 4. Additional Evidence */}
