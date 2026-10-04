@@ -46,6 +46,9 @@ const MEMBERSHIP_OPTIONS = [
 const PAYMENT_NOTE =
   "If you do not progress to become a Claimant Member by completing Step 2, you will remain a Supporter Member and we will retain your payment. You will receive access to case updates, invitations to briefings and will participate in the wider campaign, but you will not make a claim for damages. If you become a Claimant Member, the amount you pay will have an impact on the fee that is deducted from any damages associated with your claim. If you pay £250, then the fee deducted will be 32.5% + VAT; and if you pay £500 then the fee deducted will be 30% + VAT.";
 
+const PROCESSOR_FEE_NOTE =
+  "Please note that Stripe and PayPal may deduct applicable transaction fees from your payment. Harcus Parker will therefore receive the amount net of any payment processing fees.";
+
 export interface PaymentSectionHandle {
   processPayment: () => Promise<{ paymentIntentId?: string } | void>;
 }
@@ -452,6 +455,8 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
             );
           })}
         </div>
+
+        <p className="text-xs leading-relaxed text-zinc-600">{PROCESSOR_FEE_NOTE}</p>
 
         {payMethod === "stripe" && !paymentPaid && (
           <div
