@@ -30,6 +30,12 @@ const INACTIVE = "#5F7287";
 const BORDER_INACTIVE = "#E0E0E0";
 const LAVENDER = "#f3eef6";
 
+/**
+ * Feature flag: set NEXT_PUBLIC_PAYPAL_ENABLED=true to show PayPal.
+ * NEXT_PUBLIC_ vars are inlined at build time, so rebuild/redeploy after changing it.
+ */
+const PAYPAL_ENABLED = process.env.NEXT_PUBLIC_PAYPAL_ENABLED === "true";
+
 const MEMBERSHIP_OPTIONS = [
   {
     type: "INDIVIDUAL" as const,
@@ -46,8 +52,9 @@ const MEMBERSHIP_OPTIONS = [
 const PAYMENT_NOTE =
   "If you do not progress to become a Claimant Member by completing Step 2, you will remain a Supporter Member and we will retain your payment. You will receive access to case updates, invitations to briefings and will participate in the wider campaign, but you will not make a claim for damages. If you become a Claimant Member, the amount you pay will have an impact on the fee that is deducted from any damages associated with your claim. If you pay £250, then the fee deducted will be 32.5% + VAT; and if you pay £500 then the fee deducted will be 30% + VAT.";
 
-const PROCESSOR_FEE_NOTE =
-  "Please note that Stripe and PayPal may deduct applicable transaction fees from your payment. Harcus Parker will therefore receive the amount net of any payment processing fees.";
+const PROCESSOR_FEE_NOTE = PAYPAL_ENABLED
+  ? "Please note that Stripe and PayPal may deduct applicable transaction fees from your payment. Harcus Parker will therefore receive the amount net of any payment processing fees."
+  : "Please note that Stripe may deduct applicable transaction fees from your payment. Harcus Parker will therefore receive the amount net of any payment processing fees.";
 
 export interface PaymentSectionHandle {
   processPayment: () => Promise<{ paymentIntentId?: string } | void>;
@@ -180,7 +187,7 @@ function StubStripeNotice() {
   );
 }
 
-const PAYMENT_METHODS = [
+const ALL_PAYMENT_METHODS = [
   {
     id: "paypal" as const,
     label: "Pay with PayPal",
@@ -192,6 +199,11 @@ const PAYMENT_METHODS = [
     logo: <StripeLogoMark />,
   },
 ];
+
+// PayPal is only offered when the feature flag is on.
+const PAYMENT_METHODS = ALL_PAYMENT_METHODS.filter(
+  (m) => m.id !== "paypal" || PAYPAL_ENABLED
+);
 
 const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
   function MembershipPaymentSection(
@@ -230,6 +242,13 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
           : null,
       []
     );
+
+    // With PayPal off, Stripe is the only option, so preselect it
+    // (and reset a stale "paypal" selection) so the card form shows immediately.
+    useEffect(() => {
+      if (PAYPAL_ENABLED || paymentPaid) return;
+      if (payMethod !== "stripe") setPayMethod("stripe");
+    }, [payMethod, paymentPaid, setPayMethod]);
 
     function closePayPalCheckout() {
       setPaypalCheckoutOpen(false);
@@ -346,6 +365,9 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
         }
 
         if (payMethod === "paypal") {
+          if (!PAYPAL_ENABLED) {
+            throw new Error("PayPal is currently unavailable. Please pay by card.");
+          }
           if (isPayPalStubMode()) {
             return new Promise<void>((resolve, reject) => {
               paypalPaymentPromiseRef.current = { resolve, reject };
@@ -422,8 +444,12 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
 
         <hr className="border-t" style={{ borderColor: BORDER_INACTIVE }} />
 
-        {/* Payment method — PayPal left, Stripe right */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Payment method — PayPal left (when enabled), Stripe right */}
+        <div
+          className={`grid grid-cols-1 gap-4 ${
+            PAYMENT_METHODS.length > 1 ? "sm:grid-cols-2" : ""
+          }`}
+        >
           {PAYMENT_METHODS.map((method) => {
             const active = payMethod === method.id;
             return (
@@ -495,27 +521,31 @@ const MembershipPaymentSection = forwardRef<PaymentSectionHandle, Props>(
           </div>
         )}
 
-        {intentError && payMethod === "paypal" && !paymentPaid && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {intentError}
-          </p>
-        )}
+        {PAYPAL_ENABLED && (
+          <>
+            {intentError && payMethod === "paypal" && !paymentPaid && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {intentError}
+              </p>
+            )}
 
-        <PayPalReviewModal
-          open={paypalReviewOpen}
-          amount={fee}
-          paying={paypalPaying}
-          onClose={() => closePayPalReview(new Error("Payment cancelled."))}
-          onPayNow={completePayPalStubPayment}
-        />
+            <PayPalReviewModal
+              open={paypalReviewOpen}
+              amount={fee}
+              paying={paypalPaying}
+              onClose={() => closePayPalReview(new Error("Payment cancelled."))}
+              onPayNow={completePayPalStubPayment}
+            />
 
-        {!isPayPalStubMode() && (
-          <PayPalCheckoutModal
-            open={paypalCheckoutOpen}
-            amount={fee}
-            onClose={closePayPalCheckout}
-            onError={(message) => setIntentError(message)}
-          />
+            {!isPayPalStubMode() && (
+              <PayPalCheckoutModal
+                open={paypalCheckoutOpen}
+                amount={fee}
+                onClose={closePayPalCheckout}
+                onError={(message) => setIntentError(message)}
+              />
+            )}
+          </>
         )}
       </div>
     );
