@@ -3953,6 +3953,7 @@ function PracticeInfoPanel(p: {
         </div>
         <div>
           <PracticeLabel>Year ended private practice</PracticeLabel>
+          <p className="mb-1 block text-[11px] text-[#000]">(If presently in active private practice, select the current year date)</p>
           <select
             className={fieldCls}
             value={p.yearEnded}
