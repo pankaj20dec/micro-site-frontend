@@ -3792,7 +3792,7 @@ function LegalDocumentIntroSection({ membershipType }: { membershipType: string 
       Through Step 2 you will be asked to provide the information that Harcus Parker initially requires for us to put your claim to the defendants
       </p>
       <p className="mt-6 text-[16px] font-medium leading-[28px] text-[#263238]">
-      You should first have familiarised yourself with the implications of becoming a claimant member, which can be read here[DP1]  and with the descriptions and Important Legal Notices which appear on the Action Group’s microsite.
+      You should first have familiarised yourself with the implications of becoming a claimant member, which can be read <a href="https://portal.fipo.uk/explanations" target="_blank" rel="noreferrer" className="font-semibold underline" style={{ color: PURPLE }}>here</a>  and with the descriptions and <a href="https://portal.fipo.uk/explanations" target="_blank" rel="noreferrer" className="font-semibold underline" style={{ color: PURPLE }}>Important Legal Notices</a> which appear on the Action Group’s microsite.
       </p>
 
       <p className="mt-6 text-xl font-bold leading-[34px]" style={{ color: PURPLE }}>
