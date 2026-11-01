@@ -198,6 +198,13 @@ function phoneValidationError(value: string, required = true): string | null {
   }
   return null;
 }
+function isValidEmail(value: string) {
+  const v = value.trim();
+  if (!v || v.length > 254 || v.includes("..")) return false;
+  return /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/.test(
+    v
+  );
+}
 
 interface Props {
   application: Record<string, unknown> | null;
@@ -1054,6 +1061,10 @@ export default function AccordionRegistration({ application }: Props) {
 
     if (!title || !forename.trim() || !surname.trim() || !email.trim()) {
       setError("Please complete all required fields.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
     if (!address.trim()) {
