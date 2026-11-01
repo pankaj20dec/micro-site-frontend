@@ -142,7 +142,7 @@ export function HeroSlider() {
 
           <div className="mt-8 flex items-center justify-between gap-4">
             <ButtonLink
-              href="#join"
+              href="/login"
               variant="primary"
               size="md"
               className="rounded-full px-8 py-3 text-xs sm:text-sm"
