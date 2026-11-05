@@ -239,14 +239,14 @@ export default function LoginPage() {
           </form>
 
           {/* Divider */}
-          <div className="my-5 flex items-center gap-3">
+          {/* <div className="my-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-zinc-200" />
             <span className="text-xs text-zinc-400">or Sign in with</span>
             <div className="h-px flex-1 bg-zinc-200" />
-          </div>
+          </div> */}
 
           {/* Google button */}
-          <button
+          {/* <button
             type="button"
             onClick={onGoogleSignIn}
             disabled={loading || googleLoading}
@@ -259,7 +259,7 @@ export default function LoginPage() {
               <path fill="#EA4335" d="M24.48 9.488c3.564 0 6.76 1.224 9.276 3.636l6.948-6.948C36.4 2.396 30.956 0 24.48 0 15.14 0 6.984 5.116 3.024 13.364l7.872 6.14C12.808 13.76 18.156 9.488 24.48 9.488z" />
             </svg>
             {googleLoading ? "Signing in…" : "Google"}
-          </button>
+          </button> */}
 
           {/* Sign up */}
           <p className="mt-6 text-center text-sm text-zinc-500">
