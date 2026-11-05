@@ -2732,7 +2732,7 @@ const CLAIMANT_STAGE2_LEFT_BULLETS = [
   "Please note that the delegation of authority to FIPO is complete and extends to decisions about settlement as well as strategy and day to day conduct.",
   "Please also note that if you die or become incapable while the Claims are ongoing, the Power of Attorney will be revoked. It will be necessary for your attorney under an LPA or your personal representatives to execute a further Power of Attorney.",
   "Please note also that if you were paid through another entity we may need to come back to you to ask that you procure that the entity executes a further Power of Attorney.",
-  "The Power of Attorney should be signed through docusign and requires a witness",
+  "The Power of Attorney should be signed through DocuSign and requires a witness",
 ];
 
 const CLAIMANT_STAGE2_LMA_FEATURES = [
