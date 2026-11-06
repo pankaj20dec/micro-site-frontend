@@ -3016,6 +3016,8 @@ function ClaimantStage2Panel({
           >
             Witness details
           </h5>
+          <p className="text-[14px] mt-4"><strong>Note:</strong> The witness should be an independent, non-family member who is not also a claimant.
+          </p>
 
           <div className="mt-6 grid grid-cols-1 gap-[15px] sm:grid-cols-2">
             <div className="flex flex-col gap-[7px]">
