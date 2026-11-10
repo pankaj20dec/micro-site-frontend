@@ -1284,8 +1284,8 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please enter your speciality.");
       return;
     }
-    if (!practiceDeanery) {
-      setError("Please select your deanery.");
+    if (!practiceDeanery.trim()) {
+      setError("Please enter your deanery.");
       return;
     }
     if (!practiceIncome.trim()) {
@@ -3921,7 +3921,7 @@ function PracticeInfoPanel(p: {
         </div>
         <div>
           <PracticeLabel>Deanery</PracticeLabel>
-          <select
+          {/* <select
             className={fieldCls}
             value={p.deanery}
             onChange={(e) => p.setDeanery(e.target.value)}
@@ -3932,7 +3932,13 @@ function PracticeInfoPanel(p: {
                 {d}
               </option>
             ))}
-          </select>
+          </select> */}
+           <input
+            className={fieldCls}
+            value={p.deanery}
+            onChange={(e) => p.setDeanery(e.target.value)}
+            placeholder="Enter Deanery"
+          />
         </div>
         <div>
           <PracticeLabel>Average gross private income</PracticeLabel>
