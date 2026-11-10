@@ -1209,6 +1209,11 @@ export default function AccordionRegistration({ application }: Props) {
 
   async function submitConfirmation() {
     setError(null);
+    if (!paymentPaid) {
+      setError("Please complete your membership payment before continuing.");
+      setOpen("payment");
+      return;
+    }
     setLoading(true);
     markDoneAndOpenNext("confirmation");
     try {
@@ -1279,8 +1284,8 @@ export default function AccordionRegistration({ application }: Props) {
       setError("Please enter your speciality.");
       return;
     }
-    if (!practiceDeanery) {
-      setError("Please select your deanery.");
+    if (!practiceDeanery.trim()) {
+      setError("Please enter your deanery.");
       return;
     }
     if (!practiceIncome.trim()) {
@@ -1519,7 +1524,9 @@ export default function AccordionRegistration({ application }: Props) {
         {activeTab === 0 && (
           <div className="space-y-3">
             {SECTIONS.map((section) => {
-              const isLocked = section.id === "identity" && !done.has("confirmation");
+              //const isLocked = section.id === "identity" && !done.has("confirmation");
+              const paymentComplete = paymentPaid && done.has("payment");
+              const isLocked = (section.id === "confirmation" && !paymentComplete) || (section.id === "identity" && !done.has("confirmation"));
               return (
               <AccordionItem
                 key={section.id}
@@ -3914,7 +3921,7 @@ function PracticeInfoPanel(p: {
         </div>
         <div>
           <PracticeLabel>Deanery</PracticeLabel>
-          <select
+          {/* <select
             className={fieldCls}
             value={p.deanery}
             onChange={(e) => p.setDeanery(e.target.value)}
@@ -3925,7 +3932,13 @@ function PracticeInfoPanel(p: {
                 {d}
               </option>
             ))}
-          </select>
+          </select> */}
+           <input
+            className={fieldCls}
+            value={p.deanery}
+            onChange={(e) => p.setDeanery(e.target.value)}
+            placeholder="Enter Deanery"
+          />
         </div>
         <div>
           <PracticeLabel>Average gross private income</PracticeLabel>
