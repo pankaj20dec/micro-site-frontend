@@ -1209,6 +1209,11 @@ export default function AccordionRegistration({ application }: Props) {
 
   async function submitConfirmation() {
     setError(null);
+    if (!paymentPaid) {
+      setError("Please complete your membership payment before continuing.");
+      setOpen("payment");
+      return;
+    }
     setLoading(true);
     markDoneAndOpenNext("confirmation");
     try {
@@ -1519,7 +1524,9 @@ export default function AccordionRegistration({ application }: Props) {
         {activeTab === 0 && (
           <div className="space-y-3">
             {SECTIONS.map((section) => {
-              const isLocked = section.id === "identity" && !done.has("confirmation");
+              //const isLocked = section.id === "identity" && !done.has("confirmation");
+              const paymentComplete = paymentPaid && done.has("payment");
+              const isLocked = (section.id === "confirmation" && !paymentComplete) || (section.id === "identity" && !done.has("confirmation"));
               return (
               <AccordionItem
                 key={section.id}
