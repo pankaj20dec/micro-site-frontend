@@ -105,6 +105,19 @@ const CLAIMANT_PANEL_BORDER = "#F4ECFB";
 const CLAIMANT_STAGE2_BTN_BG = "#F3EAF3";
 const CLAIMANT_INPUT_BORDER = "#b2bfcf";
 
+const EVIDENCE_KEYS = ["relationship", "fee-level", "income", "additional"];
+
+function matchesUploadKey(file: EvidenceFileRecord, key: string) {
+  return file.uploadKey === key || !!file.fileUrl?.includes(`/${key}/`);
+}
+
+function getEvidenceFiles(
+  application: Record<string, unknown> | null
+): EvidenceFileRecord[] {
+  const files = (application?.evidenceFiles ?? []) as EvidenceFileRecord[];
+  return files.filter((f) => EVIDENCE_KEYS.some((k) => matchesUploadKey(f, k)));
+}
+
 function membershipLabel(type: string) {
   return type === "ORGANISATION" ? "£500 membership" : "£250 membership";
 }
@@ -387,6 +400,9 @@ export default function AccordionRegistration({ application }: Props) {
   const pmiUploading = pmiUploadingA || pmiUploadingB;
   const [pmiSavedFiles, setPmiSavedFiles] = useState<EvidenceFileRecord[]>(() =>
     getPmiEvidenceFiles(application)
+  );
+  const [evidenceSavedFiles, setEvidenceSavedFiles] = useState<EvidenceFileRecord[]>(() =>
+    getEvidenceFiles(application)
   );
   const [docusignStatus, setDocusignStatus] = useState(
     str(application?.docusignStatus)
@@ -1688,11 +1704,20 @@ export default function AccordionRegistration({ application }: Props) {
                   )}
 
                   {section.id === "evidence" && (
-                    <EvidenceUploadsPanel
-                      onUploadingChange={setEvidenceUploading}
-                      disclosureAgreed={evidenceDisclosureAgreed}
-                      onDisclosureChange={setEvidenceDisclosureAgreed}
-                    />
+                   <EvidenceUploadsPanel
+                   onUploadingChange={setEvidenceUploading}
+                   disclosureAgreed={evidenceDisclosureAgreed}
+                   onDisclosureChange={setEvidenceDisclosureAgreed}
+                   savedFiles={evidenceSavedFiles}
+                   onFileSaved={(file) =>
+                     setEvidenceSavedFiles((prev) =>
+                       prev.some((f) => f.fileUrl === file.fileUrl) ? prev : [...prev, file]
+                     )
+                   }
+                   onFilesRemoved={(key) =>
+                     setEvidenceSavedFiles((prev) => prev.filter((f) => !matchesUploadKey(f, key)))
+                   }
+                 />
                   )}
 
                   {error && legalOpen === section.id && (
@@ -5758,7 +5783,7 @@ function PmiEvidenceDropzone({
         <strong className="font-bold text-[#223645]">{boldSuffix}</strong>
       </p>
       <EvidenceFileDropzone
-        key={`${uploadKey}-${initialFilesKey || "empty"}`}
+        key={uploadKey}
         uploadKey={uploadKey}
         ctaText="Drag Files Here or Click to Upload"
         fileTypes={PMI_EVIDENCE_FILE_TYPES}
@@ -5977,11 +6002,18 @@ function EvidenceUploadsPanel({
   onUploadingChange,
   disclosureAgreed,
   onDisclosureChange,
+  savedFiles,
+  onFileSaved,
+  onFilesRemoved,
 }: {
   onUploadingChange: (uploading: boolean) => void;
   disclosureAgreed: boolean;
   onDisclosureChange: (agreed: boolean) => void;
+  savedFiles: EvidenceFileRecord[];
+  onFileSaved: (file: EvidenceFileRecord) => void;
+  onFilesRemoved: (uploadKey: string) => void;
 }) {
+  const filesFor = (key: string) => savedFiles.filter((f) => matchesUploadKey(f, key));
   const [zoneUploading, setZoneUploading] = useState<Record<string, boolean>>({});
   const [summaryFiles, setSummaryFiles] = useState<
     { category: string; name: string; size: number; status: string }[]
@@ -6026,13 +6058,21 @@ function EvidenceUploadsPanel({
     []
   );
 
-  const removeCategory = useCallback((uploadCategory: string, dropzoneKey: string) => {
-    setSummaryFiles((prev) => prev.filter((f) => f.category !== uploadCategory));
-    setDropzoneKeys((prev) => ({
-      ...prev,
-      [dropzoneKey]: prev[dropzoneKey as keyof typeof prev] + 1,
-    }));
-  }, []);
+  const removeCategory = useCallback(
+    async (uploadCategory: string, dropzoneKey: string) => {
+      const toDelete = savedFiles.filter((f) => matchesUploadKey(f, dropzoneKey));
+      await Promise.all(
+        toDelete.map((f) => (f.id ? deleteEvidenceFile(f.id).catch(() => null) : null))
+      );
+      onFilesRemoved(dropzoneKey);
+      setSummaryFiles((prev) => prev.filter((f) => f.category !== uploadCategory));
+      setDropzoneKeys((prev) => ({
+        ...prev,
+        [dropzoneKey]: prev[dropzoneKey as keyof typeof prev] + 1,
+      }));
+    },
+    [savedFiles, onFilesRemoved]
+  );
 
   return (
     <div className="py-2 sm:py-4">
@@ -6068,6 +6108,8 @@ function EvidenceUploadsPanel({
           <EvidenceFileDropzone
             key={`relationship-${dropzoneKeys.relationship}`}
             uploadKey="relationship"
+            initialFiles={filesFor("relationship")}
+onFileSaved={onFileSaved}
             footerLayout="row"
             multipleLabel="Multiple files supported"
             onUploadingChange={(u) => setZone("relationship", u)}
@@ -6099,6 +6141,8 @@ function EvidenceUploadsPanel({
           <EvidenceFileDropzone
             key={`fee-level-${dropzoneKeys["fee-level"]}`}
             uploadKey="fee-level"
+            initialFiles={filesFor("fee-level")}
+onFileSaved={onFileSaved}
             footerLayout="row"
             multipleLabel="Multiple files supported"
             onUploadingChange={(u) => setZone("fee-level", u)}
@@ -6148,6 +6192,8 @@ function EvidenceUploadsPanel({
           <EvidenceFileDropzone
             key={`income-${dropzoneKeys.income}`}
             uploadKey="income"
+            initialFiles={filesFor("income")}
+onFileSaved={onFileSaved}
             compact
             footerLayout="row"
             multipleLabel="Multiple files supported"
@@ -6224,6 +6270,8 @@ function EvidenceUploadsPanel({
           <EvidenceFileDropzone
             key={`additional-${dropzoneKeys.additional}`}
             uploadKey="additional"
+            initialFiles={filesFor("additional")}
+onFileSaved={onFileSaved}
             footerLayout="row"
             multipleLabel="Multiple files supported"
             onUploadingChange={(u) => setZone("additional", u)}
