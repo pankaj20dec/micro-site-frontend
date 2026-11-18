@@ -54,7 +54,7 @@ const legalCards = [
 ] as const;
 
 const scrollableContentClassName =
-  "mt-3 max-h-40 flex-1 overflow-y-auto pr-1 text-left text-sm leading-relaxed text-neutral-700 [scrollbar-color:#521f52_#f3f4f6] [scrollbar-width:thin] sm:max-h-52 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#521f52]/60 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-neutral-100";
+  "mt-3 max-h-40 min-h-0 flex-1 overflow-y-auto pr-1 text-left text-sm leading-relaxed text-neutral-700 sm:max-h-52 [@supports(-moz-appearance:none)]:[scrollbar-color:#521f52_#f3f4f6] [@supports(-moz-appearance:none)]:[scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#521f52]/60 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-neutral-100";
 
 function ClaimBullet({ label, text }: { label: string; text: string }) {
   return (
