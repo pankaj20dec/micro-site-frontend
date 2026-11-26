@@ -21,18 +21,35 @@ export interface AdminUserSummary {
   _count: { applications: number };
 }
 
-export async function fetchAdminUsers(params?: {
+export type AdminUsersResponse = {
+  users: AdminUserSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  showPagination: boolean;
+  prevPage: number | null;
+  nextPage: number | null;
+  pages: (number | "…")[];
+};
+
+export async function fetchAdminUsers(params: {
   search?: string;
   role?: string;
   page?: number;
-}) {
+  limit?: number;
+}): Promise<AdminUsersResponse> {
   const qs = new URLSearchParams();
-  if (params?.search) qs.set("search", params.search);
-  if (params?.role) qs.set("role", params.role);
-  if (params?.page) qs.set("page", String(params.page));
+  if (params.search) qs.set("search", params.search);
+  if (params.role) qs.set("role", params.role);
+  if (params.page) qs.set("page", String(params.page));
+  if (params.limit) qs.set("limit", String(params.limit));
 
+  const query = qs.toString();
   const res = await fetch(
-    `${getApiBase()}/api/admin/users${qs.size ? `?${qs}` : ""}`,
+    `${getApiBase()}/api/admin/users${query ? `?${query}` : ""}`,
     { headers: authHeaders() }
   );
   const data = await res.json().catch(() => ({}));
@@ -41,7 +58,7 @@ export async function fetchAdminUsers(params?: {
       typeof data.error === "string" ? data.error : "Failed to load users";
     throw Object.assign(new Error(message), { status: res.status });
   }
-  return data as { users: AdminUserSummary[]; total: number; page: number };
+  return data as AdminUsersResponse;
 }
 
 export async function impersonateAdminUser(id: string) {

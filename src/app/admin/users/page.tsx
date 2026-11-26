@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +17,26 @@ import {
   type AdminUserSummary,
 } from "@/lib/admin-users-api";
 import { setImpersonation, setUserToken } from "@/lib/user-auth";
+
+const PAGE_SIZE = 50;
+
+type PageItem = number | "…";
+
+type PaginationState = {
+  page: number;
+  totalPages: number;
+  prevPage: number | null;
+  nextPage: number | null;
+  pages: PageItem[];
+};
+
+const INITIAL_PAGINATION: PaginationState = {
+  page: 1,
+  totalPages: 1,
+  prevPage: null,
+  nextPage: null,
+  pages: [1],
+};
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -69,6 +89,8 @@ export default function AdminUsersPage() {
 
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationState>(INITIAL_PAGINATION);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [loading, setLoading] = useState(true);
@@ -89,9 +111,18 @@ export default function AdminUsersPage() {
       const data = await fetchAdminUsers({
         search: search.trim() || undefined,
         role: roleFilter || undefined,
+        page,
+        limit: PAGE_SIZE,
       });
       setUsers(data.users);
       setTotal(data.total);
+      setPagination({
+        page: data.page,
+        totalPages: data.totalPages,
+        prevPage: data.prevPage,
+        nextPage: data.nextPage,
+        pages: data.pages,
+      });
     } catch (e) {
       const status = (e as { status?: number }).status;
       if (status === 401 || status === 403) {
@@ -103,7 +134,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, search, roleFilter]);
+  }, [router, search, roleFilter, page]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -111,15 +142,10 @@ export default function AdminUsersPage() {
     loadUsers();
   }, [mounted, loadUsers]);
 
-  const roleCounts = useMemo(() => {
-    return users.reduce(
-      (acc, user) => {
-        acc[user.role] = (acc[user.role] ?? 0) + 1;
-        return acc;
-      },
-      {} as Record<AdminUserSummary["role"], number>
-    );
-  }, [users]);
+  function goToPage(next: number) {
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function handleLoginAs(user: AdminUserSummary) {
     if (!isSuperAdmin || user.role !== "USER") return;
@@ -164,14 +190,22 @@ export default function AdminUsersPage() {
     setError(null);
     try {
       await deleteAdminUser(user.id);
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      setTotal((prev) => Math.max(0, prev - 1));
+      // If that was the last user on this page, step back one page (this reloads);
+      // otherwise reload the current page so it stays full.
+      if (users.length === 1 && page > 1) {
+        setPage(page - 1);
+      } else {
+        await loadUsers();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete user");
     } finally {
       setDeletingId(null);
     }
   }
+
+  const rangeStart = (pagination.page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = rangeStart + users.length - 1;
 
   return (
     <div className="space-y-6">
@@ -199,15 +233,6 @@ export default function AdminUsersPage() {
 
       <div className="flex flex-wrap gap-3">
         <SummaryPill label="Total" value={total} />
-        {(roleCounts.USER ?? 0) > 0 && (
-          <SummaryPill label="Users" value={roleCounts.USER ?? 0} tone="slate" />
-        )}
-        {(roleCounts.ADMIN ?? 0) > 0 && (
-          <SummaryPill label="Admins" value={roleCounts.ADMIN ?? 0} tone="blue" />
-        )}
-        {(roleCounts.SUPER_ADMIN ?? 0) > 0 && (
-          <SummaryPill label="Super admins" value={roleCounts.SUPER_ADMIN ?? 0} tone="purple" />
-        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
@@ -218,13 +243,19 @@ export default function AdminUsersPage() {
               type="search"
               placeholder="Search by name or email…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-[#660066]/40 focus:bg-white focus:ring-2 focus:ring-[#660066]/10"
             />
           </div>
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
             className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[#660066]/40 focus:bg-white focus:ring-2 focus:ring-[#660066]/10 sm:min-w-[160px]"
           >
             <option value="">All roles</option>
@@ -353,12 +384,73 @@ export default function AdminUsersPage() {
         )}
 
         {!loading && users.length > 0 && (
-          <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-3 text-xs text-slate-500">
-            Showing {users.length} of {total} user{total === 1 ? "" : "s"}
+          <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500">
+              Showing {rangeStart}–{rangeEnd} of {total} user{total === 1 ? "" : "s"}
+            </p>
+            {pagination.totalPages > 1 && (
+              <PaginationBar pagination={pagination} onPageChange={goToPage} />
+            )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function PaginationBar({
+  pagination,
+  onPageChange,
+}: {
+  pagination: PaginationState;
+  onPageChange: (page: number) => void;
+}) {
+  const { page, prevPage, nextPage, pages } = pagination;
+  const base =
+    "inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2.5 text-xs font-medium transition";
+
+  return (
+    <nav className="flex flex-wrap items-center gap-1.5" aria-label="Pagination">
+      <button
+        type="button"
+        onClick={() => prevPage && onPageChange(prevPage)}
+        disabled={!prevPage}
+        className={`${base} border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        Previous
+      </button>
+
+      {pages.map((item, i) =>
+        item === "…" ? (
+          <span key={`gap-${i}`} className="px-1 text-xs text-slate-400">
+            …
+          </span>
+        ) : (
+          <button
+            key={item}
+            type="button"
+            onClick={() => onPageChange(item)}
+            aria-current={item === page ? "page" : undefined}
+            className={
+              item === page
+                ? `${base} border-[#660066] bg-[#660066] text-white`
+                : `${base} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`
+            }
+          >
+            {item}
+          </button>
+        )
+      )}
+
+      <button
+        type="button"
+        onClick={() => nextPage && onPageChange(nextPage)}
+        disabled={!nextPage}
+        className={`${base} border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        Next
+      </button>
+    </nav>
   );
 }
 

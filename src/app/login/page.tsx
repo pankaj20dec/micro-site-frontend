@@ -130,6 +130,17 @@ export default function LoginPage() {
         {/* ── Right panel ── */}
         <div className="flex flex-1 flex-col justify-center px-8 py-12 sm:px-14">
           <div className="mx-auto w-full max-w-[320px]">
+             {/* Sign up */}
+          <p className="mb-6 text-center text-sm text-zinc-500">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/register?form=1"
+              className="font-semibold underline"
+              style={{ color: "#802B7D" }}
+            >
+              Sign Up
+            </Link>
+          </p>
           <h1 className="text-2xl font-bold" style={{ color: "#802B7D" }}>
             Sign In
           </h1>
@@ -261,17 +272,7 @@ export default function LoginPage() {
             {googleLoading ? "Signing in…" : "Google"}
           </button> */}
 
-          {/* Sign up */}
-          <p className="mt-6 text-center text-sm text-zinc-500">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/register?form=1"
-              className="font-semibold underline"
-              style={{ color: "#802B7D" }}
-            >
-              Sign Up
-            </Link>
-          </p>
+         
           </div>
         </div>
       </div>

@@ -3022,8 +3022,8 @@ function ClaimantStage2Panel({
         the claimant in the intended litigation.
       </p>
 
-      <div className="mt-8 flex flex-col gap-5 xl:flex-row xl:items-start">
-        <div className="min-w-0 max-w-[580px] flex-1">
+      <div className="mt-8">
+        <div className="">
           <ul className="flex flex-col gap-[10px]">
             {CLAIMANT_STAGE2_LEFT_BULLETS.map((item) => (
               <li key={item} className="flex items-start gap-[10px]">
@@ -3044,11 +3044,11 @@ function ClaimantStage2Panel({
 
           <h5
             className="mt-10 font-semibold leading-normal"
-            style={{ color: CLAIMANT_ACTIVE, fontSize: 18 }}
+            style={{ color: CLAIMANT_ACTIVE, fontSize: 21 }}
           >
             Witness details
           </h5>
-          <p className="text-[14px] mt-4"><strong>Note:</strong> The witness should be an independent, non-family member who is not also a claimant.
+          <p className="text-[16px] mt-4"><strong>Note:</strong> The witness should be an independent, non-family member who is not also a claimant.
           </p>
 
           <div className="mt-6 grid grid-cols-1 gap-[15px] sm:grid-cols-2">
@@ -3099,19 +3099,31 @@ function ClaimantStage2Panel({
               }}
             />
           </div>
+          <h5
+            className="mt-10 font-semibold leading-normal"
+            style={{ color: CLAIMANT_ACTIVE, fontSize: 21 }}
+          >
+            Your Identity Verification
+          </h5>
+          <p className="text-[16px] mb-4 mt-3"><strong>Important: These documents must belong to you, the doctor registering to join the Action. They must not belong to your witness.</strong></p>
+          <p>To complete your identity verififcation, please upload the following documents:</p>
 
           <div className="mt-5 flex flex-col gap-3">
+            <p><strong>1. Photo ID</strong><span className="text-[#fa0000]"><sup className="text-red">*</sup></span></p>
+            <p className="text-[14px]">Passport or driving licence</p>
             <ClaimantStage2UploadRow
-              title="Photo ID"
-              subtitle="(Passport / driving licence)"
+              title="Upload your photo ID"
+              subtitle=""
               status={witnessPhotoFile ? "completed" : "empty"}
               uploading={photoUploading}
               onUpload={() => photoInputRef.current?.click()}
               onDelete={handlePhotoDelete}
             />
+            <p className="mt-2"><strong>2. Proof of address</strong><span className="text-[#fa0000]"><sup>*</sup></span></p>
+            <p className="text-[14px]">Utility bill, bank statement or other accepted proof of address</p>
             <ClaimantStage2UploadRow
-              title="Proof of address"
-              subtitle="(utility bill, bank statement, etc.)"
+              title="Upload your proof of address"
+              subtitle=""
               status={witnessProofFile ? "completed" : "empty"}
               uploading={proofUploading}
               onUpload={() => proofInputRef.current?.click()}
@@ -3144,9 +3156,9 @@ function ClaimantStage2Panel({
           </div>
         </div>
 
-        <div className="w-full max-w-[341px] shrink-0 xl:border-l xl:border-zinc-200 xl:pl-6">
+        <div className="w-full">
           <h5
-            className="font-semibold leading-normal"
+            className="font-semibold leading-normal mt-6"
             style={{ color: CLAIMANT_ACTIVE, fontSize: 21 }}
           >
             Litigation Management Agreement
@@ -3158,7 +3170,7 @@ function ClaimantStage2Panel({
             </div>
           )}
           <p
-            className="mt-6 font-normal"
+            className="mt-4 font-normal"
             style={{ fontSize: 16, lineHeight: "30px", color: "#223645" }}
           >
             For an explanation of the Litigation Management Agreement, please see
@@ -5281,7 +5293,7 @@ function RegistrationDocuSignSection({
             className={
               embeddedButton
                 ? stage2Button
-                  ? "mt-8 flex h-[58px] w-full max-w-[340px] items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 font-medium transition hover:opacity-90 disabled:opacity-60"
+                  ? "mt-8 flex h-[58px] w-full items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 font-medium transition hover:opacity-90 disabled:opacity-60"
                   : "flex h-[58px] w-full items-center justify-center gap-[10px] rounded-[6px] border-2 px-5 text-[14px] font-normal text-white transition hover:opacity-90 disabled:opacity-60"
                 : "rounded-lg px-5 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-60"
             }
