@@ -131,7 +131,7 @@ export default function LoginPage() {
         <div className="flex flex-1 flex-col justify-center px-8 py-12 sm:px-14">
           <div className="mx-auto w-full max-w-[320px]">
              {/* Sign up */}
-          <p className="mb-6 text-center text-sm text-zinc-500">
+          <p className="mb-6 text-left text-[20px] text-zinc-500">
             Don&apos;t have an account?{" "}
             <Link
               href="/register?form=1"
