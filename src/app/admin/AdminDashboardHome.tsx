@@ -205,7 +205,7 @@ export function AdminDashboardHome() {
         }
 
         const pages = (pagesData.pages ?? []) as { published?: boolean }[];
-        const usersData = await fetchAdminUsers();
+        const usersData = await fetchAdminUsers({ limit: 1 });
         const leadsData = await fetchContactLeads({ limit: 200 });
         let applicationsTotal = 0;
 
